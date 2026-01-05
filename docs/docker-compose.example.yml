@@ -1,0 +1,100 @@
+services:
+  unpackarr:
+    image: ghcr.io/eslutz/unpackarr:latest
+    container_name: unpackarr
+    environment:
+      - LOG_LEVEL=INFO
+      - HEALTH_PORT=8085
+      
+      # Extraction settings
+      - EXTRACT_PARALLEL=2
+      - EXTRACT_DELETE_ORIG=true
+      - EXTRACT_TIMEOUT=10m
+      - EXTRACT_PASSWORDS=
+      
+      # Folder watching
+      - WATCH_ENABLED=false
+      - WATCH_PATHS=/downloads
+      - WATCH_INTERVAL=30s
+      - WATCH_DELETE_DELAY=5m
+      
+      # Timing
+      - POLL_INTERVAL=2m
+      - START_DELAY=1m
+      - RETRY_DELAY=5m
+      - MAX_RETRIES=3
+      
+      # Sonarr
+      - SONARR_URL=http://sonarr:8989
+      - SONARR_API_KEY=${SONARR_API_KEY}
+      - SONARR_PATHS=/downloads
+      - SONARR_PROTOCOLS=torrent
+      - SONARR_TIMEOUT=30s
+      
+      # Radarr
+      - RADARR_URL=http://radarr:7878
+      - RADARR_API_KEY=${RADARR_API_KEY}
+      - RADARR_PATHS=/downloads
+      - RADARR_PROTOCOLS=torrent
+      - RADARR_TIMEOUT=30s
+      
+      # Lidarr (optional)
+      # - LIDARR_URL=http://lidarr:8686
+      # - LIDARR_API_KEY=${LIDARR_API_KEY}
+      
+      # Readarr (optional)
+      # - READARR_URL=http://readarr:8787
+      # - READARR_API_KEY=${READARR_API_KEY}
+      
+      # Webhook notifications (optional)
+      - WEBHOOK_URL=
+      - WEBHOOK_TEMPLATE=discord
+      - WEBHOOK_EVENTS=extracted,failed
+      - WEBHOOK_TIMEOUT=10s
+    
+    volumes:
+      - /path/to/downloads:/downloads
+    
+    ports:
+      - "8085:8085"
+    
+    restart: unless-stopped
+    
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8085/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # Example Sonarr service
+  sonarr:
+    image: lscr.io/linuxserver/sonarr:latest
+    container_name: sonarr
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=UTC
+    volumes:
+      - ./sonarr:/config
+      - /path/to/downloads:/downloads
+      - /path/to/tv:/tv
+    ports:
+      - "8989:8989"
+    restart: unless-stopped
+
+  # Example Radarr service
+  radarr:
+    image: lscr.io/linuxserver/radarr:latest
+    container_name: radarr
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=UTC
+    volumes:
+      - ./radarr:/config
+      - /path/to/downloads:/downloads
+      - /path/to/movies:/movies
+    ports:
+      - "7878:7878"
+    restart: unless-stopped

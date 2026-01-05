@@ -1,0 +1,139 @@
+package config
+
+import (
+	"fmt"
+	"strings"
+	"time"
+
+	"golift.io/cnfg"
+)
+
+type Config struct {
+	HealthPort int    `xml:"health_port"`
+	LogLevel   string `xml:"log_level"`
+
+	Extract ExtractConfig `xml:"extract"`
+	Watch   WatchConfig   `xml:"watch"`
+	Timing  TimingConfig  `xml:"timing"`
+	Webhook WebhookConfig `xml:"webhook"`
+
+	Sonarr  *StarrApp `xml:"sonarr"`
+	Radarr  *StarrApp `xml:"radarr"`
+	Lidarr  *StarrApp `xml:"lidarr"`
+	Readarr *StarrApp `xml:"readarr"`
+}
+
+type ExtractConfig struct {
+	Parallel    int           `xml:"parallel"`
+	DeleteOrig  bool          `xml:"delete_orig"`
+	Passwords   []string      `xml:"passwords"`
+	Timeout     time.Duration `xml:"timeout"`
+}
+
+type WatchConfig struct {
+	Enabled     bool          `xml:"enabled"`
+	Paths       []string      `xml:"paths"`
+	Interval    time.Duration `xml:"interval"`
+	DeleteDelay time.Duration `xml:"delete_delay"`
+}
+
+type TimingConfig struct {
+	PollInterval time.Duration `xml:"poll_interval"`
+	StartDelay   time.Duration `xml:"start_delay"`
+	RetryDelay   time.Duration `xml:"retry_delay"`
+	MaxRetries   int           `xml:"max_retries"`
+}
+
+type WebhookConfig struct {
+	URL      string        `xml:"url"`
+	Template string        `xml:"template"`
+	Events   []string      `xml:"events"`
+	Timeout  time.Duration `xml:"timeout"`
+}
+
+type StarrApp struct {
+	URL       string        `xml:"url"`
+	APIKey    string        `xml:"api_key"`
+	Paths     []string      `xml:"paths"`
+	Protocols []string      `xml:"protocols"`
+	Timeout   time.Duration `xml:"timeout"`
+}
+
+func Load() (*Config, error) {
+	cfg := &Config{
+		HealthPort: 8085,
+		LogLevel:   "INFO",
+		Extract: ExtractConfig{
+			Parallel:   1,
+			DeleteOrig: true,
+			Timeout:    10 * time.Minute,
+		},
+		Watch: WatchConfig{
+			Enabled:     false,
+			Paths:       []string{"/downloads"},
+			Interval:    30 * time.Second,
+			DeleteDelay: 5 * time.Minute,
+		},
+		Timing: TimingConfig{
+			PollInterval: 2 * time.Minute,
+			StartDelay:   1 * time.Minute,
+			RetryDelay:   5 * time.Minute,
+			MaxRetries:   3,
+		},
+		Webhook: WebhookConfig{
+			Template: "discord",
+			Events:   []string{"extracted", "failed"},
+			Timeout:  10 * time.Second,
+		},
+	}
+
+	if _, err := cnfg.UnmarshalENV(cfg, ""); err != nil {
+		return nil, fmt.Errorf("unmarshal env: %w", err)
+	}
+
+	if cfg.Extract.Parallel < 1 {
+		cfg.Extract.Parallel = 1
+	}
+
+	cfg.LogLevel = strings.ToUpper(cfg.LogLevel)
+
+	return cfg, nil
+}
+
+func (c *Config) EnabledApps() []string {
+	apps := []string{}
+	if c.Sonarr != nil && c.Sonarr.URL != "" {
+		apps = append(apps, "sonarr")
+	}
+	if c.Radarr != nil && c.Radarr.URL != "" {
+		apps = append(apps, "radarr")
+	}
+	if c.Lidarr != nil && c.Lidarr.URL != "" {
+		apps = append(apps, "lidarr")
+	}
+	if c.Readarr != nil && c.Readarr.URL != "" {
+		apps = append(apps, "readarr")
+	}
+	return apps
+}
+
+func (s *StarrApp) HasPath(path string) bool {
+	for _, p := range s.Paths {
+		if strings.HasPrefix(path, p) {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *StarrApp) HasProtocol(protocol string) bool {
+	if len(s.Protocols) == 0 {
+		return true
+	}
+	for _, p := range s.Protocols {
+		if strings.EqualFold(p, protocol) {
+			return true
+		}
+	}
+	return false
+}
