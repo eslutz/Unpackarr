@@ -74,7 +74,7 @@ For each app (SONARR, RADARR, LIDARR, READARR):
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `{APP}_URL` | | Base URL (e.g., http://sonarr:8989) |
+| `{APP}_URL` | | Base URL (e.g., <http://sonarr:8989>) |
 | `{APP}_API_KEY` | | API key from app settings |
 | `{APP}_PATHS` | `/downloads` | Comma-separated paths to monitor |
 | `{APP}_PROTOCOLS` | `torrent` | Protocols: torrent, usenet, or both |
@@ -182,6 +182,7 @@ WEBHOOK_TEMPLATE=json
 ```
 
 JSON payload format:
+
 ```json
 {
   "event": "extracted",
@@ -258,6 +259,7 @@ MIT
 ## Credits
 
 Built with:
+
 - [golift.io/xtractr](https://github.com/golift/xtractr) — Archive extraction
 - [golift.io/starr](https://github.com/golift/starr) — Starr API clients
 - [golift.io/cnfg](https://github.com/golift/cnfg) — Environment configuration

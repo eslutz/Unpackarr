@@ -31,9 +31,9 @@ func main() {
 	queue := extract.NewQueue(&cfg.Extract, func(result *extract.Result) {
 		log.Printf("[Extract] Completed: %s (source: %s, success: %t, duration: %s)",
 			result.Name, result.Source, result.Success, result.Elapsed)
-		
+
 		metrics.RecordExtraction(result)
-		
+
 		if webhook != nil {
 			webhook.Notify(result)
 		}
@@ -45,7 +45,7 @@ func main() {
 	healthServer := health.NewServer(queue, watcher, &cfg.Watch)
 
 	clients := initStarrClients(cfg, queue, healthServer)
-	
+
 	log.Printf("Started %d starr clients", len(clients))
 	if cfg.Watch.Enabled {
 		log.Printf("Folder watcher enabled for %d paths", len(cfg.Watch.Paths))
@@ -62,7 +62,7 @@ func main() {
 	<-sigChan
 
 	log.Println("Shutting down...")
-	
+
 	for _, client := range clients {
 		client.Stop()
 	}

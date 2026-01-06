@@ -49,12 +49,12 @@ func (s *Server) Start(port int) error {
 
 func (s *Server) handlePing(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+	_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]bool{"healthy": true})
+	_ = json.NewEncoder(w).Encode(map[string]bool{"healthy": true})
 }
 
 func (s *Server) handleReady(w http.ResponseWriter, r *http.Request) {
@@ -77,19 +77,19 @@ func (s *Server) handleReady(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if !ready {
 		w.WriteHeader(http.StatusServiceUnavailable)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"ready":   false,
 			"reasons": reasons,
 		})
 		return
 	}
 
-	json.NewEncoder(w).Encode(map[string]bool{"ready": true})
+	_ = json.NewEncoder(w).Encode(map[string]bool{"ready": true})
 }
 
 func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	stats := s.queue.Stats()
-	
+
 	apps := make(map[string]interface{})
 	for name, client := range s.clients {
 		connected, queueSize := client.Status()
@@ -113,18 +113,18 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(status)
+	_ = json.NewEncoder(w).Encode(status)
 }
 
 func (s *Server) handleMetrics(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; version=0.0.4")
-	
+
 	stats := s.queue.Stats()
-	
-	fmt.Fprintf(w, "# HELP unpackarr_queue_size Current queue size by state\n")
-	fmt.Fprintf(w, "# TYPE unpackarr_queue_size gauge\n")
-	fmt.Fprintf(w, "unpackarr_queue_size{state=\"waiting\"} %d\n", stats.Waiting)
-	fmt.Fprintf(w, "unpackarr_queue_size{state=\"extracting\"} %d\n", stats.Extracting)
+
+	_, _ = fmt.Fprintf(w, "# HELP unpackarr_queue_size Current queue size by state\n")
+	_, _ = fmt.Fprintf(w, "# TYPE unpackarr_queue_size gauge\n")
+	_, _ = fmt.Fprintf(w, "unpackarr_queue_size{state=\"waiting\"} %d\n", stats.Waiting)
+	_, _ = fmt.Fprintf(w, "unpackarr_queue_size{state=\"extracting\"} %d\n", stats.Extracting)
 
 	for name, client := range s.clients {
 		connected, queueSize := client.Status()
@@ -132,17 +132,17 @@ func (s *Server) handleMetrics(w http.ResponseWriter, r *http.Request) {
 		if connected {
 			connectedValue = 1
 		}
-		
-		fmt.Fprintf(w, "# HELP unpackarr_starr_connected Connection status (1=connected, 0=disconnected)\n")
-		fmt.Fprintf(w, "# TYPE unpackarr_starr_connected gauge\n")
-		fmt.Fprintf(w, "unpackarr_starr_connected{app=\"%s\"} %d\n", name, connectedValue)
-		
-		fmt.Fprintf(w, "# HELP unpackarr_starr_queue_items Number of items in starr queue\n")
-		fmt.Fprintf(w, "# TYPE unpackarr_starr_queue_items gauge\n")
-		fmt.Fprintf(w, "unpackarr_starr_queue_items{app=\"%s\"} %d\n", name, queueSize)
+
+		_, _ = fmt.Fprintf(w, "# HELP unpackarr_starr_connected Connection status (1=connected, 0=disconnected)\n")
+		_, _ = fmt.Fprintf(w, "# TYPE unpackarr_starr_connected gauge\n")
+		_, _ = fmt.Fprintf(w, "unpackarr_starr_connected{app=\"%s\"} %d\n", name, connectedValue)
+
+		_, _ = fmt.Fprintf(w, "# HELP unpackarr_starr_queue_items Number of items in starr queue\n")
+		_, _ = fmt.Fprintf(w, "# TYPE unpackarr_starr_queue_items gauge\n")
+		_, _ = fmt.Fprintf(w, "unpackarr_starr_queue_items{app=\"%s\"} %d\n", name, queueSize)
 	}
 
-	fmt.Fprintf(w, "# HELP unpackarr_start_time_seconds Start time of the application\n")
-	fmt.Fprintf(w, "# TYPE unpackarr_start_time_seconds gauge\n")
-	fmt.Fprintf(w, "unpackarr_start_time_seconds %d\n", s.startTime.Unix())
+	_, _ = fmt.Fprintf(w, "# HELP unpackarr_start_time_seconds Start time of the application\n")
+	_, _ = fmt.Fprintf(w, "# TYPE unpackarr_start_time_seconds gauge\n")
+	_, _ = fmt.Fprintf(w, "unpackarr_start_time_seconds %d\n", s.startTime.Unix())
 }

@@ -17,14 +17,14 @@ func TestNewClient(t *testing.T) {
 		Protocols: []string{"torrent"},
 		Timeout:   30 * time.Second,
 	}
-	
+
 	extractCfg := &config.ExtractConfig{Parallel: 1}
 	queue := extract.NewQueue(extractCfg, nil)
-	
+
 	timing := &config.TimingConfig{
 		PollInterval: 2 * time.Minute,
 	}
-	
+
 	client := NewClient("test", cfg, queue, timing)
 	if client == nil {
 		t.Fatal("NewClient() should not return nil")
@@ -39,14 +39,14 @@ func TestClientConfig(t *testing.T) {
 		URL:    "http://test:8989",
 		APIKey: "test-key",
 	}
-	
+
 	extractCfg := &config.ExtractConfig{Parallel: 1}
 	queue := extract.NewQueue(extractCfg, nil)
 	timing := &config.TimingConfig{}
-	
+
 	client := NewClient("test", cfg, queue, timing)
 	starrCfg := client.Config()
-	
+
 	if starrCfg.URL != cfg.URL {
 		t.Errorf("Config().URL = %s, want %s", starrCfg.URL, cfg.URL)
 	}
@@ -62,13 +62,13 @@ func TestShouldProcess(t *testing.T) {
 		Paths:     []string{"/downloads"},
 		Protocols: []string{"torrent"},
 	}
-	
+
 	extractCfg := &config.ExtractConfig{Parallel: 1}
 	queue := extract.NewQueue(extractCfg, nil)
 	timing := &config.TimingConfig{}
-	
+
 	client := NewClient("test", cfg, queue, timing)
-	
+
 	tests := []struct {
 		name     string
 		item     *QueueItem
@@ -99,7 +99,7 @@ func TestShouldProcess(t *testing.T) {
 			expected: false,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := client.ShouldProcess(tt.item)
@@ -115,13 +115,13 @@ func TestClientStatus(t *testing.T) {
 		URL:    "http://test:8989",
 		APIKey: "test-key",
 	}
-	
+
 	extractCfg := &config.ExtractConfig{Parallel: 1}
 	queue := extract.NewQueue(extractCfg, nil)
 	timing := &config.TimingConfig{}
-	
+
 	client := NewClient("test", cfg, queue, timing)
-	
+
 	connected, queueSize := client.Status()
 	if connected {
 		t.Error("Status() connected should be false initially")
@@ -129,7 +129,7 @@ func TestClientStatus(t *testing.T) {
 	if queueSize != 0 {
 		t.Errorf("Status() queueSize = %d, want 0", queueSize)
 	}
-	
+
 	client.SetQueueSize(5)
 	_, queueSize = client.Status()
 	if queueSize != 5 {
@@ -147,7 +147,7 @@ func TestQueueItem(t *testing.T) {
 		Size:       1024.0,
 		DownloadID: "abc123",
 	}
-	
+
 	if item.ID != 123 {
 		t.Errorf("ID = %d, want 123", item.ID)
 	}
@@ -168,11 +168,11 @@ func TestClientStop(t *testing.T) {
 		URL:    "http://test:8989",
 		APIKey: "test",
 	}
-	
+
 	extractCfg := &config.ExtractConfig{Parallel: 1}
 	queue := extract.NewQueue(extractCfg, nil)
 	timing := &config.TimingConfig{}
-	
+
 	client := NewClient("test", cfg, queue, timing)
 	client.Stop()
 }
@@ -183,19 +183,19 @@ func TestClientStart(t *testing.T) {
 		APIKey:  "test",
 		Timeout: 1 * time.Second,
 	}
-	
+
 	extractCfg := &config.ExtractConfig{Parallel: 1}
 	queue := extract.NewQueue(extractCfg, nil)
 	timing := &config.TimingConfig{
 		PollInterval: 100 * time.Millisecond,
 	}
-	
+
 	client := NewClient("test", cfg, queue, timing)
-	
+
 	testPoller := func(ctx context.Context, c *Client) error {
 		return nil
 	}
-	
+
 	client.Start(testPoller)
 	time.Sleep(200 * time.Millisecond)
 	client.Stop()

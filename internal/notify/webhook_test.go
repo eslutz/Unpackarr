@@ -18,7 +18,7 @@ func TestNewWebhook(t *testing.T) {
 		Events:   []string{"extracted", "failed"},
 		Timeout:  10 * time.Second,
 	}
-	
+
 	webhook := NewWebhook(cfg)
 	if webhook == nil {
 		t.Fatal("NewWebhook() should not return nil")
@@ -29,7 +29,7 @@ func TestNewWebhookEmpty(t *testing.T) {
 	cfg := &config.WebhookConfig{
 		URL: "",
 	}
-	
+
 	webhook := NewWebhook(cfg)
 	if webhook != nil {
 		t.Error("NewWebhook() with empty URL should return nil")
@@ -41,12 +41,12 @@ func TestDetermineEvent(t *testing.T) {
 		URL: "http://test.com",
 	}
 	webhook := NewWebhook(cfg)
-	
+
 	successResult := &extract.Result{Success: true}
 	if webhook.determineEvent(successResult) != "extracted" {
 		t.Error("determineEvent() for success should return 'extracted'")
 	}
-	
+
 	failResult := &extract.Result{Success: false}
 	if webhook.determineEvent(failResult) != "failed" {
 		t.Error("determineEvent() for failure should return 'failed'")
@@ -59,7 +59,7 @@ func TestShouldNotify(t *testing.T) {
 		Events: []string{"extracted"},
 	}
 	webhook := NewWebhook(cfg)
-	
+
 	if !webhook.shouldNotify("extracted") {
 		t.Error("shouldNotify('extracted') should return true")
 	}
@@ -74,7 +74,7 @@ func TestDiscordPayload(t *testing.T) {
 		Template: "discord",
 	}
 	webhook := NewWebhook(cfg)
-	
+
 	result := &extract.Result{
 		Name:     "Test Movie",
 		Source:   "radarr",
@@ -85,10 +85,10 @@ func TestDiscordPayload(t *testing.T) {
 		Size:     1024 * 1024 * 100,
 		Success:  true,
 	}
-	
+
 	payload := webhook.discordPayload(result, "extracted")
 	payloadStr := string(payload)
-	
+
 	if !strings.Contains(payloadStr, "embeds") {
 		t.Error("Discord payload should contain 'embeds'")
 	}
@@ -103,7 +103,7 @@ func TestSlackPayload(t *testing.T) {
 		Template: "slack",
 	}
 	webhook := NewWebhook(cfg)
-	
+
 	result := &extract.Result{
 		Name:     "Test Show",
 		Source:   "sonarr",
@@ -114,10 +114,10 @@ func TestSlackPayload(t *testing.T) {
 		Size:     1024 * 1024 * 200,
 		Success:  true,
 	}
-	
+
 	payload := webhook.slackPayload(result, "extracted")
 	payloadStr := string(payload)
-	
+
 	if !strings.Contains(payloadStr, "attachments") {
 		t.Error("Slack payload should contain 'attachments'")
 	}
@@ -132,7 +132,7 @@ func TestGotifyPayload(t *testing.T) {
 		Template: "gotify",
 	}
 	webhook := NewWebhook(cfg)
-	
+
 	result := &extract.Result{
 		Name:     "Test Album",
 		Source:   "lidarr",
@@ -143,10 +143,10 @@ func TestGotifyPayload(t *testing.T) {
 		Size:     1024 * 1024 * 50,
 		Success:  true,
 	}
-	
+
 	payload := webhook.gotifyPayload(result, "extracted")
 	payloadStr := string(payload)
-	
+
 	if !strings.Contains(payloadStr, "title") {
 		t.Error("Gotify payload should contain 'title'")
 	}
@@ -161,7 +161,7 @@ func TestJSONPayload(t *testing.T) {
 		Template: "json",
 	}
 	webhook := NewWebhook(cfg)
-	
+
 	result := &extract.Result{
 		Name:     "Test Book",
 		Source:   "readarr",
@@ -172,10 +172,10 @@ func TestJSONPayload(t *testing.T) {
 		Size:     1024 * 1024 * 10,
 		Success:  true,
 	}
-	
+
 	payload := webhook.jsonPayload(result, "extracted")
 	payloadStr := string(payload)
-	
+
 	if !strings.Contains(payloadStr, "event") {
 		t.Error("JSON payload should contain 'event'")
 	}
@@ -192,7 +192,7 @@ func TestNotifySuccess(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer server.Close()
-	
+
 	cfg := &config.WebhookConfig{
 		URL:      server.URL,
 		Template: "json",
@@ -200,7 +200,7 @@ func TestNotifySuccess(t *testing.T) {
 		Timeout:  5 * time.Second,
 	}
 	webhook := NewWebhook(cfg)
-	
+
 	result := &extract.Result{
 		Name:    "Test",
 		Source:  "folder",
@@ -208,14 +208,14 @@ func TestNotifySuccess(t *testing.T) {
 		Elapsed: 10 * time.Second,
 		Success: true,
 	}
-	
+
 	webhook.Notify(result)
 }
 
 func TestNotifyNil(t *testing.T) {
 	var webhook *Webhook
 	result := &extract.Result{Success: true}
-	
+
 	webhook.Notify(result)
 }
 
@@ -226,11 +226,11 @@ func TestNotifyFilteredEvent(t *testing.T) {
 		Events:   []string{"extracted"},
 	}
 	webhook := NewWebhook(cfg)
-	
+
 	result := &extract.Result{
 		Success: false,
 	}
-	
+
 	webhook.Notify(result)
 }
 
@@ -246,12 +246,12 @@ func TestBuildPayload(t *testing.T) {
 		{"json", "json", "event"},
 		{"unknown", "unknown", "event"},
 	}
-	
+
 	result := &extract.Result{
 		Name:    "Test",
 		Success: true,
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := &config.WebhookConfig{
@@ -260,7 +260,7 @@ func TestBuildPayload(t *testing.T) {
 			}
 			webhook := NewWebhook(cfg)
 			payload := webhook.buildPayload(result, "extracted")
-			
+
 			if !strings.Contains(string(payload), tt.contains) {
 				t.Errorf("buildPayload(%s) should contain '%s'", tt.template, tt.contains)
 			}
@@ -274,7 +274,7 @@ func TestSendError(t *testing.T) {
 		Timeout: 1 * time.Second,
 	}
 	webhook := NewWebhook(cfg)
-	
+
 	err := webhook.send([]byte("{}"))
 	if err == nil {
 		t.Error("send() to invalid URL should return error")

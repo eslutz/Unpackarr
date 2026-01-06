@@ -8,12 +8,12 @@ import (
 
 func TestLoad(t *testing.T) {
 	os.Clearenv()
-	
+
 	cfg, err := Load()
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
-	
+
 	if cfg.HealthPort != 8085 {
 		t.Errorf("HealthPort = %d, want 8085", cfg.HealthPort)
 	}
@@ -30,16 +30,24 @@ func TestLoad(t *testing.T) {
 
 func TestLoadWithEnv(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("HEALTH_PORT", "9090")
-	os.Setenv("LOG_LEVEL", "debug")
-	os.Setenv("EXTRACT_PARALLEL", "4")
-	os.Setenv("EXTRACT_DELETE_ORIG", "false")
-	
+	if err := os.Setenv("HEALTH_PORT", "9090"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Setenv("LOG_LEVEL", "debug"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Setenv("EXTRACT_PARALLEL", "4"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Setenv("EXTRACT_DELETE_ORIG", "false"); err != nil {
+		t.Fatal(err)
+	}
+
 	cfg, err := Load()
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
-	
+
 	if cfg.HealthPort != 9090 {
 		t.Errorf("HealthPort = %d, want 9090", cfg.HealthPort)
 	}
@@ -52,7 +60,7 @@ func TestLoadWithEnv(t *testing.T) {
 	if cfg.Extract.DeleteOrig {
 		t.Error("Extract.DeleteOrig should be false")
 	}
-	
+
 	os.Clearenv()
 }
 
@@ -61,7 +69,7 @@ func TestEnabledApps(t *testing.T) {
 		Sonarr: &StarrApp{URL: "http://sonarr:8989"},
 		Radarr: &StarrApp{URL: "http://radarr:7878"},
 	}
-	
+
 	apps := cfg.EnabledApps()
 	if len(apps) != 2 {
 		t.Errorf("EnabledApps() = %d apps, want 2", len(apps))
@@ -72,7 +80,7 @@ func TestStarrAppHasPath(t *testing.T) {
 	app := &StarrApp{
 		Paths: []string{"/downloads", "/media"},
 	}
-	
+
 	if !app.HasPath("/downloads/movie") {
 		t.Error("HasPath() should return true for /downloads/movie")
 	}
@@ -85,14 +93,14 @@ func TestStarrAppHasProtocol(t *testing.T) {
 	app := &StarrApp{
 		Protocols: []string{"torrent"},
 	}
-	
+
 	if !app.HasProtocol("torrent") {
 		t.Error("HasProtocol() should return true for torrent")
 	}
 	if app.HasProtocol("usenet") {
 		t.Error("HasProtocol() should return false for usenet")
 	}
-	
+
 	appAll := &StarrApp{
 		Protocols: []string{},
 	}
@@ -103,28 +111,30 @@ func TestStarrAppHasProtocol(t *testing.T) {
 
 func TestMinimumParallel(t *testing.T) {
 	os.Clearenv()
-	os.Setenv("EXTRACT_PARALLEL", "0")
-	
+	if err := os.Setenv("EXTRACT_PARALLEL", "0"); err != nil {
+		t.Fatal(err)
+	}
+
 	cfg, err := Load()
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
-	
+
 	if cfg.Extract.Parallel != 1 {
 		t.Errorf("Extract.Parallel = %d, want 1 (minimum)", cfg.Extract.Parallel)
 	}
-	
+
 	os.Clearenv()
 }
 
 func TestDefaultTiming(t *testing.T) {
 	os.Clearenv()
-	
+
 	cfg, err := Load()
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
-	
+
 	if cfg.Timing.PollInterval != 2*time.Minute {
 		t.Errorf("PollInterval = %v, want 2m", cfg.Timing.PollInterval)
 	}

@@ -17,7 +17,7 @@ func TestString(t *testing.T) {
 
 func TestInfo(t *testing.T) {
 	info := Info()
-	
+
 	if info["version"] != Version {
 		t.Errorf("Info() version = %s, want %s", info["version"], Version)
 	}

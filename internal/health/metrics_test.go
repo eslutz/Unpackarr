@@ -17,7 +17,7 @@ func TestNewMetrics(t *testing.T) {
 
 func TestRecordExtraction(t *testing.T) {
 	m := NewMetrics()
-	
+
 	result := &extract.Result{
 		Name:     "test",
 		Source:   "sonarr",
@@ -28,9 +28,9 @@ func TestRecordExtraction(t *testing.T) {
 		Size:     1024 * 1024,
 		Success:  true,
 	}
-	
+
 	m.RecordExtraction(result)
-	
+
 	prom := m.ExportPrometheus()
 	if !strings.Contains(prom, "unpackarr_extractions_total") {
 		t.Error("ExportPrometheus() should contain unpackarr_extractions_total")
@@ -45,7 +45,7 @@ func TestRecordExtraction(t *testing.T) {
 
 func TestRecordExtractionFailure(t *testing.T) {
 	m := NewMetrics()
-	
+
 	result := &extract.Result{
 		Name:    "test",
 		Source:  "radarr",
@@ -54,9 +54,9 @@ func TestRecordExtractionFailure(t *testing.T) {
 		Success: false,
 		Error:   nil,
 	}
-	
+
 	m.RecordExtraction(result)
-	
+
 	prom := m.ExportPrometheus()
 	if !strings.Contains(prom, "status=\"failed\"") {
 		t.Error("ExportPrometheus() should contain status=\"failed\" for failures")
@@ -65,7 +65,7 @@ func TestRecordExtractionFailure(t *testing.T) {
 
 func TestExportPrometheus(t *testing.T) {
 	m := NewMetrics()
-	
+
 	m.RecordExtraction(&extract.Result{
 		Name:     "test1",
 		Source:   "sonarr",
@@ -76,7 +76,7 @@ func TestExportPrometheus(t *testing.T) {
 		Size:     1024,
 		Success:  true,
 	})
-	
+
 	m.RecordExtraction(&extract.Result{
 		Name:     "test2",
 		Source:   "radarr",
@@ -87,9 +87,9 @@ func TestExportPrometheus(t *testing.T) {
 		Size:     2048,
 		Success:  true,
 	})
-	
+
 	prom := m.ExportPrometheus()
-	
+
 	expectedMetrics := []string{
 		"unpackarr_extractions_total",
 		"unpackarr_extraction_duration_seconds",
@@ -97,7 +97,7 @@ func TestExportPrometheus(t *testing.T) {
 		"unpackarr_files_extracted_total",
 		"unpackarr_archives_processed_total",
 	}
-	
+
 	for _, metric := range expectedMetrics {
 		if !strings.Contains(prom, metric) {
 			t.Errorf("ExportPrometheus() should contain %s", metric)
@@ -107,7 +107,7 @@ func TestExportPrometheus(t *testing.T) {
 
 func TestMultipleExtractions(t *testing.T) {
 	m := NewMetrics()
-	
+
 	for i := 0; i < 5; i++ {
 		m.RecordExtraction(&extract.Result{
 			Name:     "test",
@@ -120,7 +120,7 @@ func TestMultipleExtractions(t *testing.T) {
 			Success:  true,
 		})
 	}
-	
+
 	prom := m.ExportPrometheus()
 	if !strings.Contains(prom, "source=\"folder\"") {
 		t.Error("ExportPrometheus() should track folder source")

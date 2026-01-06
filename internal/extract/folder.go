@@ -81,7 +81,7 @@ func (w *Watcher) scanPath(basePath string) {
 		}
 
 		fullPath := filepath.Join(basePath, entry.Name())
-		
+
 		if w.hasArchives(fullPath) && !w.isTracked(fullPath) {
 			w.queueExtraction(fullPath, entry.Name())
 		}

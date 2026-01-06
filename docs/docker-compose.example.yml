@@ -5,61 +5,61 @@ services:
     environment:
       - LOG_LEVEL=INFO
       - HEALTH_PORT=8085
-      
+
       # Extraction settings
       - EXTRACT_PARALLEL=2
       - EXTRACT_DELETE_ORIG=true
       - EXTRACT_TIMEOUT=10m
       - EXTRACT_PASSWORDS=
-      
+
       # Folder watching
       - WATCH_ENABLED=false
       - WATCH_PATHS=/downloads
       - WATCH_INTERVAL=30s
       - WATCH_DELETE_DELAY=5m
-      
+
       # Timing
       - POLL_INTERVAL=2m
       - START_DELAY=1m
       - RETRY_DELAY=5m
       - MAX_RETRIES=3
-      
+
       # Sonarr
       - SONARR_URL=http://sonarr:8989
       - SONARR_API_KEY=${SONARR_API_KEY}
       - SONARR_PATHS=/downloads
       - SONARR_PROTOCOLS=torrent
       - SONARR_TIMEOUT=30s
-      
+
       # Radarr
       - RADARR_URL=http://radarr:7878
       - RADARR_API_KEY=${RADARR_API_KEY}
       - RADARR_PATHS=/downloads
       - RADARR_PROTOCOLS=torrent
       - RADARR_TIMEOUT=30s
-      
+
       # Lidarr (optional)
       # - LIDARR_URL=http://lidarr:8686
       # - LIDARR_API_KEY=${LIDARR_API_KEY}
-      
+
       # Readarr (optional)
       # - READARR_URL=http://readarr:8787
       # - READARR_API_KEY=${READARR_API_KEY}
-      
+
       # Webhook notifications (optional)
       - WEBHOOK_URL=
       - WEBHOOK_TEMPLATE=discord
       - WEBHOOK_EVENTS=extracted,failed
       - WEBHOOK_TIMEOUT=10s
-    
+
     volumes:
       - /path/to/downloads:/downloads
-    
+
     ports:
       - "8085:8085"
-    
+
     restart: unless-stopped
-    
+
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:8085/health"]
       interval: 30s

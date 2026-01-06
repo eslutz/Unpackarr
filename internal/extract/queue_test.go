@@ -15,11 +15,11 @@ func TestNewQueue(t *testing.T) {
 		Passwords:  []string{"test"},
 		Timeout:    10 * time.Minute,
 	}
-	
+
 	callback := func(r *Result) {
 		// callback implementation
 	}
-	
+
 	queue := NewQueue(cfg, callback)
 	if queue == nil {
 		t.Fatal("NewQueue() should not return nil")
@@ -36,10 +36,10 @@ func TestQueueStats(t *testing.T) {
 	cfg := &config.ExtractConfig{
 		Parallel: 1,
 	}
-	
+
 	queue := NewQueue(cfg, nil)
 	stats := queue.Stats()
-	
+
 	if stats.Waiting != 0 {
 		t.Errorf("Initial waiting = %d, want 0", stats.Waiting)
 	}
@@ -60,7 +60,7 @@ func TestResult(t *testing.T) {
 		Success:  true,
 		Error:    nil,
 	}
-	
+
 	if result.Name != "test" {
 		t.Errorf("Name = %s, want test", result.Name)
 	}
@@ -77,7 +77,7 @@ func TestRequest(t *testing.T) {
 		DeleteOrig: true,
 		Passwords:  []string{"pass1", "pass2"},
 	}
-	
+
 	if req.Name != "test-archive" {
 		t.Errorf("Name = %s, want test-archive", req.Name)
 	}
@@ -90,7 +90,7 @@ func TestQueueStop(t *testing.T) {
 	cfg := &config.ExtractConfig{
 		Parallel: 1,
 	}
-	
+
 	queue := NewQueue(cfg, nil)
 	queue.Stop()
 }
@@ -99,7 +99,7 @@ func TestQueuePrintf(t *testing.T) {
 	cfg := &config.ExtractConfig{
 		Parallel: 1,
 	}
-	
+
 	queue := NewQueue(cfg, nil)
 	queue.Printf("test %s", "message")
 }
@@ -108,7 +108,7 @@ func TestQueueDebugf(t *testing.T) {
 	cfg := &config.ExtractConfig{
 		Parallel: 1,
 	}
-	
+
 	queue := NewQueue(cfg, nil)
 	queue.Debugf("test %s", "debug")
 }
@@ -125,7 +125,7 @@ func TestResultWithError(t *testing.T) {
 		Success:  false,
 		Error:    errors.New("extraction failed"),
 	}
-	
+
 	if result.Success {
 		t.Error("Success should be false for failed extraction")
 	}
