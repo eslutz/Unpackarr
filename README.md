@@ -6,7 +6,7 @@ Container-native archive extraction service for the *arr stack. Automatically ex
 
 - **Stateless** — No databases, no history, restart anytime
 - **Environment-only config** — 12-factor compliant, no config files
-- **Multi-app support** — Works with Sonarr, Radarr, Lidarr, Readarr
+- **Multi-app support** — Direct integration with Sonarr, Radarr, Lidarr, Readarr via [golift.io/starr](https://github.com/golift/starr)
 - **Folder watching** — Optional directory scanning for standalone use
 - **Webhook notifications** — Discord, Slack, Gotify, or custom JSON
 - **Prometheus metrics** — Full observability with extraction stats
@@ -68,9 +68,9 @@ All configuration is done via environment variables.
 | `WEBHOOK_EVENTS` | `extracted,failed` | Events: queued, extracting, extracted, failed |
 | `WEBHOOK_TIMEOUT` | `10s` | HTTP timeout |
 
-### Starr Apps
+### *arr Apps (Sonarr, Radarr, Lidarr, Readarr)
 
-For each app (SONARR, RADARR, LIDARR, READARR):
+These apps are supported via the [golift.io/starr](https://github.com/golift/starr) package. For each app:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -79,6 +79,8 @@ For each app (SONARR, RADARR, LIDARR, READARR):
 | `{APP}_PATHS` | `/downloads` | Comma-separated paths to monitor |
 | `{APP}_PROTOCOLS` | `torrent` | Protocols: torrent, usenet, or both |
 | `{APP}_TIMEOUT` | `30s` | API timeout |
+
+**Note**: Other *arr applications (e.g., Whisparr) not listed above can use the [Folder Watching](#folder-watching) feature for automatic extraction.
 
 ## Health Endpoints
 
@@ -197,7 +199,26 @@ JSON payload format:
 }
 ```
 
-## Building
+## Architecture
+
+- **Stateless design** — No persistence, safe to restart
+- **Single binary** — No runtime dependencies beyond extraction tools
+- **Goroutine-based** — Concurrent polling and extraction
+- **Channel-driven** — Clean communication between components
+
+## Supported Archive Formats
+
+- RAR (.rar, .r00-r99)
+- ZIP (.zip)
+- 7-Zip (.7z)
+- TAR (.tar, .tar.gz, .tgz)
+- GZIP (.gz)
+- BZIP2 (.bz2)
+- ISO (.iso)
+
+## Contributing
+
+### Building
 
 ```bash
 go build -o unpackarr ./cmd/unpackarr
@@ -217,7 +238,7 @@ go build -ldflags="-s -w \
   -o unpackarr ./cmd/unpackarr
 ```
 
-## Development
+### Development
 
 ```bash
 # Install dependencies
@@ -234,27 +255,6 @@ docker build -t unpackarr .
 # Run tests
 go test ./...
 ```
-
-## Architecture
-
-- **Stateless design** — No persistence, safe to restart
-- **Single binary** — No runtime dependencies beyond extraction tools
-- **Goroutine-based** — Concurrent polling and extraction
-- **Channel-driven** — Clean communication between components
-
-## Supported Archive Formats
-
-- RAR (.rar, .r00-r99)
-- ZIP (.zip)
-- 7-Zip (.7z)
-- TAR (.tar, .tar.gz, .tgz)
-- GZIP (.gz)
-- BZIP2 (.bz2)
-- ISO (.iso)
-
-## License
-
-MIT
 
 ## Credits
 
