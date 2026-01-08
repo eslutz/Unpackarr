@@ -1,5 +1,11 @@
 # Unpackarr
 
+[![Workflow Status](https://github.com/eslutz/unpackarr/actions/workflows/release.yml/badge.svg)](https://github.com/eslutz/unpackarr/actions/workflows/release.yml)
+[![Security Check](https://github.com/eslutz/unpackarr/actions/workflows/security.yml/badge.svg)](https://github.com/eslutz/unpackarr/actions/workflows/security.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/eslutz/unpackarr)](https://goreportcard.com/report/github.com/eslutz/unpackarr)
+[![License](https://img.shields.io/github/license/eslutz/unpackarr)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/eslutz/unpackarr?color=007ec6)](https://github.com/eslutz/unpackarr/releases/latest)
+
 Container-native archive extraction service for the *arr stack. Automatically extracts compressed downloads for Sonarr, Radarr, Lidarr, and Readarr.
 
 ## Features
@@ -80,6 +86,51 @@ Optional notifications to Discord, Slack, Gotify, or custom JSON endpoints. See 
 | `WEBHOOK_TEMPLATE` | `discord` | Template: discord, slack, gotify, json |
 | `WEBHOOK_EVENTS` | `extracted,failed` | Events: queued, extracting, extracted, failed |
 
+## Architecture
+
+```txt
+┌─────────────────────────────────────────────────────────────────────┐
+│                            Unpackarr                                │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  ┌─────────────┐  poll    ┌──────────────┐    ┌────────────────┐    │
+│  │ Starr Apps  │─────────►│              │    │  Health Server │    │
+│  │  (Sonarr,   │  queues  │  Extraction  │◄───│   HTTP :8085   │    │
+│  │   Radarr,   │          │    Queue     │    │  (/ping,       │    │
+│  │   Lidarr,   │          │              │    │   /metrics)    │    │
+│  │   Readarr)  │          │  (xtractr)   │    └────────────────┘    │
+│  └─────────────┘          └──────┬───────┘                          │
+│                                  │                                  │
+│  ┌─────────────┐  scan           │ extract                          │
+│  │   Folder    │─────────────────┘                                  │
+│  │   Watcher   │                  │                                 │
+│  └─────────────┘                  ▼                                 │
+│                           ┌───────────────┐                         │
+│                           │   Callbacks   │                         │
+│                           ├───────────────┤                         │
+│                           │   • Metrics   │                         │
+│                           │   • Webhooks  │                         │
+│                           │   • Markers   │                         │
+│                           └───────────────┘                         │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**Key Components:**
+
+- **Starr Clients** — Poll *arr application queues at `POLL_INTERVAL` for completed downloads
+- **Folder Watcher** — Scans configured directories for archives (standalone mode)
+- **Extraction Queue** — Centralized queue using `golift.io/xtractr` with configurable parallelism
+- **Health Server** — Exposes metrics, status, and health check endpoints
+- **Callbacks** — Handle post-extraction actions (metrics recording, webhook notifications, marker file creation)
+
+**Design Principles:**
+
+- **Stateless design** — No persistence, safe to restart
+- **Single binary** — Pure Go implementation, no external dependencies
+- **Goroutine-based** — Concurrent polling and extraction
+- **Channel-driven** — Clean communication between components
+
 ### *arr Apps (Sonarr, Radarr, Lidarr, Readarr)
 
 These apps are supported via the [golift.io/starr](https://github.com/golift/starr) package. Each app uses the same pattern. Replace `{APP}` with `SONARR`, `RADARR`, `LIDARR`, or `READARR`. See [docs/.env.example](docs/.env.example) for detailed configuration.
@@ -142,6 +193,17 @@ unpackarr_starr_connected{app}
 # System metrics
 unpackarr_start_time_seconds
 ```
+
+## Grafana Dashboard
+
+A pre-built Grafana dashboard is available at [docs/unpackarr-grafana-dashboard.json](docs/unpackarr-grafana-dashboard.json). Import it into your Grafana instance to visualize:
+
+- Extraction success rates and failure counts
+- Queue size and state (waiting, extracting)
+- Extraction throughput (bytes, files, archives)
+- Starr app connection status and queue items
+- Go runtime metrics (memory, goroutines, CPU)
+- Uptime and extraction duration trends
 
 ## Docker Compose
 
@@ -209,13 +271,6 @@ JSON payload format:
 }
 ```
 
-## Architecture
-
-- **Stateless design** — No persistence, safe to restart
-- **Single binary** — Pure Go implementation, no external dependencies
-- **Goroutine-based** — Concurrent polling and extraction
-- **Channel-driven** — Clean communication between components
-
 ## Supported Archive Formats
 
 - RAR (.rar, .r00-r99)
@@ -228,10 +283,23 @@ JSON payload format:
 
 ## Contributing
 
-### Building
+Contributions are welcome! Please follow these guidelines when submitting changes.
+
+### Building from Source
 
 ```bash
+# Clone the repository
+git clone https://github.com/eslutz/unpackarr.git
+cd unpackarr
+
+# Install dependencies
+go mod download
+
+# Build binary
 go build -o unpackarr ./cmd/unpackarr
+
+# Build Docker image
+docker build -t unpackarr .
 ```
 
 With version information:
@@ -251,25 +319,72 @@ go build -ldflags="-s -w \
 ### Development
 
 ```bash
-# Install dependencies
-go mod download
+# Run tests
+go test ./...
+
+# Run tests with race detector and coverage
+go test -race -coverprofile=coverage.out -covermode=atomic ./...
+
+# View coverage report
+go tool cover -func=coverage.out
+
+# Run linter
+golangci-lint run
 
 # Run locally
 export SONARR_URL=http://localhost:8989
 export SONARR_API_KEY=your-key
 go run ./cmd/unpackarr
-
-# Build Docker image
-docker build -t unpackarr .
-
-# Run tests
-go test ./...
 ```
 
-## Credits
+Before submitting a pull request:
 
-Built with:
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Run linters and tests
+6. Submit a pull request
 
-- [golift.io/xtractr](https://github.com/golift/xtractr) — Archive extraction
-- [golift.io/starr](https://github.com/golift/starr) — Starr API clients
-- [golift.io/cnfg](https://github.com/golift/cnfg) — Environment configuration
+See our [Pull Request Template](.github/PULL_REQUEST_TEMPLATE.md) for more details.
+
+## Security
+
+Security is a top priority for this project. If you discover a security vulnerability, please follow responsible disclosure practices.
+
+**Reporting Vulnerabilities:**
+
+Please report security vulnerabilities through GitHub Security Advisories:
+<https://github.com/eslutz/unpackarr/security/advisories/new>
+
+Alternatively, you can view our [Security Policy](.github/SECURITY.md) for additional contact methods and guidelines.
+
+**Security Best Practices:**
+
+- Keep your installation up to date with the latest releases
+- Use strong, unique API keys for *arr application integrations
+- Avoid exposing the health/metrics port to the public internet
+- Review and understand the volume mount permissions
+- Regularly monitor logs for suspicious activity
+- Ensure proper file permissions on watch directories
+
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+You are free to use, modify, and distribute this software under the terms of the MIT License.
+
+## Acknowledgments
+
+This project is built with and inspired by excellent open-source software:
+
+- **[golift.io/xtractr](https://github.com/golift/xtractr)** - Archive extraction library for Go
+- **[golift.io/starr](https://github.com/golift/starr)** - Starr application API clients
+- **[golift.io/cnfg](https://github.com/golift/cnfg)** - Environment-based configuration
+- **[Prometheus](https://prometheus.io/)** - Monitoring system and time series database
+- **[unpackerr](https://github.com/Unpackerr/unpackerr)** - The original archive extraction tool for *arr applications (inspiration for this project)
+
+## Related Projects
+
+- **[Forwardarr](https://github.com/eslutz/forwardarr)** - Automatic port forwarding sync from Gluetun VPN to qBittorrent
+- **[Torarr](https://github.com/eslutz/torarr)** - Tor SOCKS proxy container for the *arr stack with health monitoring
