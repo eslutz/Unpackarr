@@ -208,7 +208,7 @@ JSON payload format:
 ## Architecture
 
 - **Stateless design** — No persistence, safe to restart
-- **Single binary** — No runtime dependencies beyond extraction tools
+- **Single binary** — Pure Go implementation, no external dependencies
 - **Goroutine-based** — Concurrent polling and extraction
 - **Channel-driven** — Clean communication between components
 
