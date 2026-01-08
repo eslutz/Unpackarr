@@ -12,7 +12,7 @@ RUN go build -ldflags="-s -w \
     -X github.com/eslutz/unpackarr/pkg/version.Date=${DATE}" \
     -o /unpackarr ./cmd/unpackarr
 
-FROM alpine:3.21
+FROM alpine:3.23
 RUN apk add --no-cache \
     ca-certificates \
     unrar \
