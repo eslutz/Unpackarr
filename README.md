@@ -28,7 +28,7 @@ docker run -d \
   -e RADARR_URL=http://radarr:7878 \
   -e RADARR_API_KEY=your-api-key \
   -v /path/to/downloads:/downloads \
-  -p 8085:8085 \
+  -p 9092:9092 \
   ghcr.io/eslutz/unpackarr:latest
 ```
 
@@ -42,7 +42,7 @@ Key settings (see [docs/.env.example](docs/.env.example) for all options):
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `HEALTH_PORT` | `8085` | HTTP server port |
+| `HEALTH_PORT` | `9092` | HTTP server port |
 | `LOG_LEVEL` | `INFO` | Log level: DEBUG, INFO, WARN, ERROR |
 | `EXTRACT_PARALLEL` | `1` | Concurrent extractions |
 | `EXTRACT_DELETE_ORIG` | `true` | Delete archives after extraction |
@@ -95,7 +95,7 @@ Optional notifications to Discord, Slack, Gotify, or custom JSON endpoints. See 
 │                                                                     │
 │  ┌─────────────┐  poll    ┌──────────────┐    ┌────────────────┐    │
 │  │ Starr Apps  │─────────►│              │    │  Health Server │    │
-│  │  (Sonarr,   │  queues  │  Extraction  │◄───│   HTTP :8085   │    │
+│  │  (Sonarr,   │  queues  │  Extraction  │◄───│   HTTP :9092   │    │
 │  │   Radarr,   │          │    Queue     │    │  (/ping,       │    │
 │  │   Lidarr,   │          │              │    │   /metrics)    │    │
 │  │   Readarr)  │          │  (xtractr)   │    └────────────────┘    │
@@ -222,7 +222,7 @@ services:
     volumes:
       - /path/to/downloads:/downloads
     ports:
-      - "8085:8085"
+      - "9092:9092"
     restart: unless-stopped
 ```
 

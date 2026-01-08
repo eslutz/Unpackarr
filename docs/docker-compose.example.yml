@@ -4,7 +4,7 @@ services:
     container_name: unpackarr
     environment:
       - LOG_LEVEL=INFO
-      - HEALTH_PORT=8085
+      - HEALTH_PORT=9092
 
       # Extraction settings
       - EXTRACT_PARALLEL=2
@@ -51,12 +51,12 @@ services:
       - /path/to/downloads:/downloads
 
     ports:
-      - "8085:8085"
+      - "9092:9092"
 
     restart: unless-stopped
 
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8085/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9092/health"]
       interval: 30s
       timeout: 5s
       retries: 3

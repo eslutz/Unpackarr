@@ -17,7 +17,7 @@ RUN apk add --no-cache ca-certificates wget \
   && adduser -D -u 1000 unpackarr
 USER unpackarr
 COPY --from=builder /unpackarr /usr/local/bin/
-EXPOSE 8085
+EXPOSE 9092
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
-  CMD wget -q --spider http://localhost:8085/ping || exit 1
+  CMD wget -q --spider http://localhost:9092/ping || exit 1
 ENTRYPOINT ["/usr/local/bin/unpackarr"]

@@ -14,8 +14,8 @@ func TestLoad(t *testing.T) {
 		t.Fatalf("Load() error = %v", err)
 	}
 
-	if cfg.HealthPort != 8085 {
-		t.Errorf("HealthPort = %d, want 8085", cfg.HealthPort)
+	if cfg.HealthPort != 9092 {
+		t.Errorf("HealthPort = %d, want 9092", cfg.HealthPort)
 	}
 	if cfg.LogLevel != "INFO" {
 		t.Errorf("LogLevel = %s, want INFO", cfg.LogLevel)

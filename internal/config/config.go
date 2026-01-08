@@ -57,7 +57,7 @@ type StarrApp struct {
 
 func Load() (*Config, error) {
 	cfg := &Config{
-		HealthPort: 8085,
+		HealthPort: 9092,
 		LogLevel:   "INFO",
 		Extract: ExtractConfig{
 			Parallel:   1,
