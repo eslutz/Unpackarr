@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"time"
@@ -215,6 +216,10 @@ func (w *Webhook) send(payload []byte) error {
 	defer func() {
 		_ = resp.Body.Close()
 	}()
+
+	// Limit response body to prevent memory exhaustion from malicious endpoints
+	limitedBody := io.LimitReader(resp.Body, 1024*1024) // 1MB limit
+	_, _ = io.ReadAll(limitedBody)
 
 	if resp.StatusCode >= 400 {
 		return fmt.Errorf("webhook returned status %d", resp.StatusCode)

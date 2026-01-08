@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -96,6 +97,30 @@ func Load() (*Config, error) {
 	}
 
 	cfg.LogLevel = strings.ToUpper(cfg.LogLevel)
+
+	// Validate webhook events
+	if cfg.Webhook.URL != "" {
+		validEvents := map[string]struct{}{
+			"extracted": {},
+			"failed":    {},
+		}
+		filteredEvents := make([]string, 0, len(cfg.Webhook.Events))
+		for _, evt := range cfg.Webhook.Events {
+			if _, ok := validEvents[evt]; ok {
+				filteredEvents = append(filteredEvents, evt)
+			} else {
+				log.Printf("[Config] Invalid webhook event configured: %s (ignoring)", evt)
+			}
+		}
+		if len(filteredEvents) == 0 {
+			if len(cfg.Webhook.Events) > 0 {
+				log.Printf("[Config] All configured webhook events were invalid; falling back to defaults")
+			}
+			cfg.Webhook.Events = []string{"extracted", "failed"}
+		} else {
+			cfg.Webhook.Events = filteredEvents
+		}
+	}
 
 	return cfg, nil
 }

@@ -280,3 +280,48 @@ func TestSendError(t *testing.T) {
 		t.Error("send() to invalid URL should return error")
 	}
 }
+
+func TestSendResponseBodyLimited(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Send a large response body
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		// Write 2MB of data (exceeds the 1MB limit)
+		for i := 0; i < 2; i++ {
+			_, _ = w.Write(make([]byte, 1024*1024))
+		}
+	}))
+	defer server.Close()
+
+	cfg := &config.WebhookConfig{
+		URL:     server.URL,
+		Timeout: 5 * time.Second,
+	}
+	webhook := NewWebhook(cfg)
+
+	// This should succeed even with large response body due to limiting
+	err := webhook.send([]byte("{}"))
+	if err != nil {
+		t.Errorf("send() with large response body should succeed, got: %v", err)
+	}
+}
+
+func TestSendSuccess(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("{}"))
+	}))
+	defer server.Close()
+
+	cfg := &config.WebhookConfig{
+		URL:     server.URL,
+		Timeout: 5 * time.Second,
+	}
+	webhook := NewWebhook(cfg)
+
+	err := webhook.send([]byte("{}"))
+	if err != nil {
+		t.Errorf("send() should succeed, got: %v", err)
+	}
+}

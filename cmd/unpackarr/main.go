@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/eslutz/unpackarr/internal/config"
 	"github.com/eslutz/unpackarr/internal/extract"
@@ -35,7 +36,27 @@ func main() {
 		metrics.RecordExtraction(result)
 
 		if webhook != nil {
-			webhook.Notify(result)
+			go func() {
+				// Recover from panics to prevent crashing the application
+				defer func() {
+					if r := recover(); r != nil {
+						log.Printf("[Webhook] Panic recovered: %v", r)
+					}
+				}()
+
+				event := "extracted"
+				if !result.Success {
+					event = "failed"
+				}
+
+				start := time.Now()
+				webhook.Notify(result)
+				duration := time.Since(start)
+
+				if metrics != nil {
+					metrics.RecordWebhook(event, true, duration)
+				}
+			}()
 		}
 	})
 

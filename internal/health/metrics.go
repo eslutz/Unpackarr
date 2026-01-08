@@ -3,6 +3,7 @@ package health
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/eslutz/unpackarr/internal/extract"
 )
@@ -14,6 +15,8 @@ type Metrics struct {
 	bytesExtracted      map[string]int64
 	filesExtracted      map[string]int64
 	archivesProcessed   map[string]int64
+	webhooksTotal       map[string]map[string]int64
+	webhookDurations    map[string]float64
 }
 
 func NewMetrics() *Metrics {
@@ -23,6 +26,8 @@ func NewMetrics() *Metrics {
 		bytesExtracted:      make(map[string]int64),
 		filesExtracted:      make(map[string]int64),
 		archivesProcessed:   make(map[string]int64),
+		webhooksTotal:       make(map[string]map[string]int64),
+		webhookDurations:    make(map[string]float64),
 	}
 }
 
@@ -46,6 +51,25 @@ func (m *Metrics) RecordExtraction(result *extract.Result) {
 		m.bytesExtracted[source] += result.Size
 		m.filesExtracted[source] += int64(result.Files)
 		m.archivesProcessed[source] += int64(result.Archives)
+	}
+}
+
+func (m *Metrics) RecordWebhook(event string, success bool, duration time.Duration) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	status := "success"
+	if !success {
+		status = "failed"
+	}
+
+	if m.webhooksTotal[event] == nil {
+		m.webhooksTotal[event] = make(map[string]int64)
+	}
+	m.webhooksTotal[event][status]++
+
+	if success {
+		m.webhookDurations[event] = duration.Seconds()
 	}
 }
 
@@ -85,6 +109,20 @@ func (m *Metrics) ExportPrometheus() string {
 	out += "# TYPE unpackarr_archives_processed_total counter\n"
 	for source, archives := range m.archivesProcessed {
 		out += fmt.Sprintf("unpackarr_archives_processed_total{source=\"%s\"} %d\n", source, archives)
+	}
+
+	out += "# HELP unpackarr_webhooks_total Total webhook calls\n"
+	out += "# TYPE unpackarr_webhooks_total counter\n"
+	for event, statuses := range m.webhooksTotal {
+		for status, count := range statuses {
+			out += fmt.Sprintf("unpackarr_webhooks_total{event=\"%s\",status=\"%s\"} %d\n", event, status, count)
+		}
+	}
+
+	out += "# HELP unpackarr_webhook_duration_seconds Last webhook duration\n"
+	out += "# TYPE unpackarr_webhook_duration_seconds gauge\n"
+	for event, duration := range m.webhookDurations {
+		out += fmt.Sprintf("unpackarr_webhook_duration_seconds{event=\"%s\"} %.2f\n", event, duration)
 	}
 
 	return out

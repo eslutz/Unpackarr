@@ -126,3 +126,54 @@ func TestMultipleExtractions(t *testing.T) {
 		t.Error("ExportPrometheus() should track folder source")
 	}
 }
+func TestRecordWebhook(t *testing.T) {
+	m := NewMetrics()
+
+	m.RecordWebhook("extracted", true, 100*time.Millisecond)
+
+	prom := m.ExportPrometheus()
+	if !strings.Contains(prom, "unpackarr_webhooks_total") {
+		t.Error("ExportPrometheus() should contain unpackarr_webhooks_total")
+	}
+	if !strings.Contains(prom, "event=\"extracted\"") {
+		t.Error("ExportPrometheus() should contain event label")
+	}
+	if !strings.Contains(prom, "status=\"success\"") {
+		t.Error("ExportPrometheus() should contain status=\"success\" for successful webhooks")
+	}
+}
+
+func TestRecordWebhookFailure(t *testing.T) {
+	m := NewMetrics()
+
+	m.RecordWebhook("failed", false, 50*time.Millisecond)
+
+	prom := m.ExportPrometheus()
+	if !strings.Contains(prom, "event=\"failed\"") {
+		t.Error("ExportPrometheus() should contain event=\"failed\"")
+	}
+	if !strings.Contains(prom, "status=\"failed\"") {
+		t.Error("ExportPrometheus() should contain status=\"failed\" for failed webhooks")
+	}
+}
+
+func TestWebhookMetricsExport(t *testing.T) {
+	m := NewMetrics()
+
+	m.RecordWebhook("extracted", true, 100*time.Millisecond)
+	m.RecordWebhook("extracted", true, 110*time.Millisecond)
+	m.RecordWebhook("failed", false, 50*time.Millisecond)
+
+	prom := m.ExportPrometheus()
+
+	expectedMetrics := []string{
+		"unpackarr_webhooks_total",
+		"unpackarr_webhook_duration_seconds",
+	}
+
+	for _, metric := range expectedMetrics {
+		if !strings.Contains(prom, metric) {
+			t.Errorf("ExportPrometheus() should contain %s", metric)
+		}
+	}
+}
