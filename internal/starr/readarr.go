@@ -36,7 +36,7 @@ func (r *ReadarrClient) poll(ctx context.Context, c *Client) error {
 		item := &QueueItem{
 			ID:         record.ID,
 			Path:       record.OutputPath,
-			Protocol:   record.Protocol,
+			Protocol:   string(record.Protocol),
 			Status:     record.Status,
 			Name:       record.Title,
 			Size:       record.Size,
