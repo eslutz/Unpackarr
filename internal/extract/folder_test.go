@@ -11,11 +11,9 @@ import (
 
 func TestNewWatcher(t *testing.T) {
 	cfg := &config.WatchConfig{
-		Enabled:         true,
-		Paths:           []string{"/downloads"},
-		Interval:        30 * time.Second,
-		DeleteDelay:     5 * time.Minute,
-		CleanupInterval: 1 * time.Hour,
+		FolderWatchEnabled:         true,
+		FolderWatchPaths:           []string{"/downloads"},
+		MarkerCleanup: 1 * time.Hour,
 	}
 
 	extractCfg := &config.ExtractConfig{
@@ -23,8 +21,12 @@ func TestNewWatcher(t *testing.T) {
 		DeleteOrig: true,
 	}
 
+	timing := &config.TimingConfig{
+		PollInterval: 2 * time.Minute,
+	}
+
 	queue := NewQueue(extractCfg, nil)
-	watcher := NewWatcher(cfg, extractCfg, queue)
+	watcher := NewWatcher(cfg, extractCfg, timing, queue)
 
 	if watcher == nil {
 		t.Fatal("NewWatcher() should not return nil")
@@ -35,20 +37,20 @@ func TestNewWatcher(t *testing.T) {
 	if watcher.deleteOrig != extractCfg.DeleteOrig {
 		t.Error("Watcher deleteOrig should match extract config")
 	}
-	if watcher.cleanupInterval != cfg.CleanupInterval {
+	if watcher.cleanupInterval != cfg.MarkerCleanup {
 		t.Error("Watcher cleanupInterval should match config")
 	}
 }
 
 func TestWatcherPaths(t *testing.T) {
 	cfg := &config.WatchConfig{
-		Enabled: true,
-		Paths:   []string{"/downloads", "/media"},
+		FolderWatchEnabled: true,
+		FolderWatchPaths:   []string{"/downloads", "/media"},
 	}
 
 	extractCfg := &config.ExtractConfig{Parallel: 1}
 	queue := NewQueue(extractCfg, nil)
-	watcher := NewWatcher(cfg, extractCfg, queue)
+	watcher := NewWatcher(cfg, extractCfg, &config.TimingConfig{PollInterval: 2 * time.Minute}, queue)
 
 	paths := watcher.Paths()
 	if len(paths) != 2 {
@@ -81,12 +83,12 @@ func TestArchiveInPath(t *testing.T) {
 
 func TestWatcherDisabled(t *testing.T) {
 	cfg := &config.WatchConfig{
-		Enabled: false,
+		FolderWatchEnabled: false,
 	}
 
 	extractCfg := &config.ExtractConfig{Parallel: 1}
 	queue := NewQueue(extractCfg, nil)
-	watcher := NewWatcher(cfg, extractCfg, queue)
+	watcher := NewWatcher(cfg, extractCfg, &config.TimingConfig{PollInterval: 2 * time.Minute}, queue)
 
 	watcher.Start()
 	time.Sleep(100 * time.Millisecond)
@@ -168,7 +170,7 @@ func TestHasMarker(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cfg := &config.WatchConfig{Enabled: true}
+	cfg := &config.WatchConfig{FolderWatchEnabled: true}
 	extractCfg := &config.ExtractConfig{Parallel: 1, DeleteOrig: false}
 	queue := NewQueue(extractCfg, nil)
 
@@ -193,7 +195,7 @@ func TestHasMarker(t *testing.T) {
 
 	// Test with deleteOrig=true (should always return false)
 	extractCfg.DeleteOrig = true
-	watcher2 := NewWatcher(cfg, extractCfg, queue)
+	watcher2 := NewWatcher(cfg, extractCfg, &config.TimingConfig{PollInterval: 2 * time.Minute}, queue)
 	// Even with marker present, hasMarker should return false when deleteOrig=true
 	// (though this check may not work with fake archive)
 	if watcher2.deleteOrig != true {
@@ -228,12 +230,12 @@ func TestCleanOrphanedMarkers(t *testing.T) {
 	}
 
 	cfg := &config.WatchConfig{
-		Enabled: true,
-		Paths:   []string{tmpDir},
+		FolderWatchEnabled: true,
+		FolderWatchPaths:   []string{tmpDir},
 	}
 	extractCfg := &config.ExtractConfig{Parallel: 1, DeleteOrig: false}
 	queue := NewQueue(extractCfg, nil)
-	watcher := NewWatcher(cfg, extractCfg, queue)
+	watcher := NewWatcher(cfg, extractCfg, &config.TimingConfig{PollInterval: 2 * time.Minute}, queue)
 
 	// Clean orphaned markers
 	watcher.cleanOrphanedMarkers()
@@ -265,13 +267,13 @@ func TestScanPath(t *testing.T) {
 	}
 
 	cfg := &config.WatchConfig{
-		Enabled: true,
-		Paths:   []string{tmpDir},
+		FolderWatchEnabled: true,
+		FolderWatchPaths:   []string{tmpDir},
 	}
 
 	extractCfg := &config.ExtractConfig{Parallel: 1}
 	queue := NewQueue(extractCfg, nil)
-	watcher := NewWatcher(cfg, extractCfg, queue)
+	watcher := NewWatcher(cfg, extractCfg, &config.TimingConfig{PollInterval: 2 * time.Minute}, queue)
 
 	watcher.scanPath(tmpDir)
 }
@@ -286,12 +288,12 @@ func TestHasArchives(t *testing.T) {
 	}()
 
 	cfg := &config.WatchConfig{
-		Enabled: true,
+		FolderWatchEnabled: true,
 	}
 
 	extractCfg := &config.ExtractConfig{Parallel: 1}
 	queue := NewQueue(extractCfg, nil)
-	watcher := NewWatcher(cfg, extractCfg, queue)
+	watcher := NewWatcher(cfg, extractCfg, &config.TimingConfig{PollInterval: 2 * time.Minute}, queue)
 
 	if watcher.hasArchives(tmpDir) {
 		t.Error("hasArchives() should return false for empty directory")

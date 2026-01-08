@@ -14,6 +14,7 @@ import (
 type Watcher struct {
 	config          *config.WatchConfig
 	extract         *config.ExtractConfig
+	timing          *config.TimingConfig
 	queue           *Queue
 	stop            chan struct{}
 	cleanupStop     chan struct{}
@@ -21,20 +22,21 @@ type Watcher struct {
 	cleanupInterval time.Duration
 }
 
-func NewWatcher(cfg *config.WatchConfig, extractCfg *config.ExtractConfig, queue *Queue) *Watcher {
+func NewWatcher(cfg *config.WatchConfig, extractCfg *config.ExtractConfig, timing *config.TimingConfig, queue *Queue) *Watcher {
 	return &Watcher{
 		config:          cfg,
 		extract:         extractCfg,
+		timing:          timing,
 		queue:           queue,
 		stop:            make(chan struct{}),
 		cleanupStop:     make(chan struct{}),
 		deleteOrig:      extractCfg.DeleteOrig,
-		cleanupInterval: cfg.CleanupInterval,
+		cleanupInterval: cfg.MarkerCleanup,
 	}
 }
 
 func (w *Watcher) Start() {
-	if !w.config.Enabled {
+	if !w.config.FolderWatchEnabled {
 		return
 	}
 
@@ -53,10 +55,10 @@ func (w *Watcher) Stop() {
 }
 
 func (w *Watcher) run() {
-	ticker := time.NewTicker(w.config.Interval)
+	ticker := time.NewTicker(w.timing.PollInterval)
 	defer ticker.Stop()
 
-	log.Printf("[Watcher] Started watching %d paths", len(w.config.Paths))
+	log.Printf("[Watcher] Started watching %d paths (poll interval: %s)", len(w.config.FolderWatchPaths), w.timing.PollInterval)
 
 	for {
 		select {
@@ -70,7 +72,7 @@ func (w *Watcher) run() {
 }
 
 func (w *Watcher) scan() {
-	for _, path := range w.config.Paths {
+	for _, path := range w.config.FolderWatchPaths {
 		w.scanPath(path)
 	}
 }
@@ -204,7 +206,7 @@ func (w *Watcher) runCleanup() {
 
 // cleanOrphanedMarkers removes marker files where the corresponding archive no longer exists
 func (w *Watcher) cleanOrphanedMarkers() {
-	for _, basePath := range w.config.Paths {
+	for _, basePath := range w.config.FolderWatchPaths {
 		err := filepath.Walk(basePath, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return nil // Skip errors and continue
@@ -244,8 +246,8 @@ func (w *Watcher) cleanOrphanedMarkers() {
 }
 
 func (w *Watcher) Paths() []string {
-	paths := make([]string, len(w.config.Paths))
-	copy(paths, w.config.Paths)
+	paths := make([]string, len(w.config.FolderWatchPaths))
+	copy(paths, w.config.FolderWatchPaths)
 	return paths
 }
 

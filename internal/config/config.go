@@ -25,25 +25,19 @@ type Config struct {
 }
 
 type ExtractConfig struct {
-	Parallel    int           `xml:"parallel"`
-	DeleteOrig  bool          `xml:"delete_orig"`
-	Passwords   []string      `xml:"passwords"`
-	Timeout     time.Duration `xml:"timeout"`
+	Parallel   int      `xml:"parallel"`
+	DeleteOrig bool     `xml:"delete_orig"`
+	Passwords  []string `xml:"passwords"`
 }
 
 type WatchConfig struct {
-	Enabled         bool          `xml:"enabled"`
-	Paths           []string      `xml:"paths"`
-	Interval        time.Duration `xml:"interval"`
-	DeleteDelay     time.Duration `xml:"delete_delay"`
-	CleanupInterval time.Duration `xml:"cleanup_interval"`
+	FolderWatchEnabled bool          `xml:"folder_watch_enabled"`
+	FolderWatchPaths   []string      `xml:"folder_watch_paths"`
+	MarkerCleanup      time.Duration `xml:"marker_cleanup_interval"`
 }
 
 type TimingConfig struct {
 	PollInterval time.Duration `xml:"poll_interval"`
-	StartDelay   time.Duration `xml:"start_delay"`
-	RetryDelay   time.Duration `xml:"retry_delay"`
-	MaxRetries   int           `xml:"max_retries"`
 }
 
 type WebhookConfig struct {
@@ -68,20 +62,14 @@ func Load() (*Config, error) {
 		Extract: ExtractConfig{
 			Parallel:   1,
 			DeleteOrig: true,
-			Timeout:    10 * time.Minute,
 		},
 		Watch: WatchConfig{
-			Enabled:         false,
-			Paths:           []string{"/downloads"},
-			Interval:        30 * time.Second,
-			DeleteDelay:     5 * time.Minute,
-			CleanupInterval: 1 * time.Hour,
+			FolderWatchEnabled: false,
+			FolderWatchPaths:   []string{"/downloads"},
+			MarkerCleanup:      1 * time.Hour,
 		},
 		Timing: TimingConfig{
 			PollInterval: 2 * time.Minute,
-			StartDelay:   1 * time.Minute,
-			RetryDelay:   5 * time.Minute,
-			MaxRetries:   3,
 		},
 		Webhook: WebhookConfig{
 			Template: "discord",

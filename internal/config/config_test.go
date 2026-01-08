@@ -138,12 +138,6 @@ func TestDefaultTiming(t *testing.T) {
 	if cfg.Timing.PollInterval != 2*time.Minute {
 		t.Errorf("PollInterval = %v, want 2m", cfg.Timing.PollInterval)
 	}
-	if cfg.Timing.StartDelay != 1*time.Minute {
-		t.Errorf("StartDelay = %v, want 1m", cfg.Timing.StartDelay)
-	}
-	if cfg.Timing.MaxRetries != 3 {
-		t.Errorf("MaxRetries = %d, want 3", cfg.Timing.MaxRetries)
-	}
 }
 func TestWebhookEventValidation(t *testing.T) {
 	os.Clearenv()

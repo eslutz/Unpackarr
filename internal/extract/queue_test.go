@@ -13,7 +13,6 @@ func TestNewQueue(t *testing.T) {
 		Parallel:   2,
 		DeleteOrig: true,
 		Passwords:  []string{"test"},
-		Timeout:    10 * time.Minute,
 	}
 
 	callback := func(r *Result) {

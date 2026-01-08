@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/eslutz/unpackarr/internal/config"
 	"github.com/eslutz/unpackarr/internal/extract"
@@ -14,12 +15,12 @@ import (
 
 func TestNewServer(t *testing.T) {
 	cfg := &config.WatchConfig{
-		Enabled: false,
+		FolderWatchEnabled: false,
 	}
 
 	extractCfg := &config.ExtractConfig{Parallel: 1}
 	queue := extract.NewQueue(extractCfg, nil)
-	watcher := extract.NewWatcher(cfg, extractCfg, queue)
+	watcher := extract.NewWatcher(cfg, extractCfg, &config.TimingConfig{PollInterval: 2 * time.Minute}, queue)
 
 	server := NewServer(queue, watcher, cfg)
 	if server == nil {
@@ -28,10 +29,10 @@ func TestNewServer(t *testing.T) {
 }
 
 func TestHandlePing(t *testing.T) {
-	cfg := &config.WatchConfig{Enabled: false}
+	cfg := &config.WatchConfig{FolderWatchEnabled: false}
 	extractCfg := &config.ExtractConfig{Parallel: 1}
 	queue := extract.NewQueue(extractCfg, nil)
-	watcher := extract.NewWatcher(cfg, extractCfg, queue)
+	watcher := extract.NewWatcher(cfg, extractCfg, &config.TimingConfig{PollInterval: 2 * time.Minute}, queue)
 	server := NewServer(queue, watcher, cfg)
 
 	req := httptest.NewRequest("GET", "/ping", nil)
@@ -51,10 +52,10 @@ func TestHandlePing(t *testing.T) {
 }
 
 func TestHandleHealth(t *testing.T) {
-	cfg := &config.WatchConfig{Enabled: false}
+	cfg := &config.WatchConfig{FolderWatchEnabled: false}
 	extractCfg := &config.ExtractConfig{Parallel: 1}
 	queue := extract.NewQueue(extractCfg, nil)
-	watcher := extract.NewWatcher(cfg, extractCfg, queue)
+	watcher := extract.NewWatcher(cfg, extractCfg, &config.TimingConfig{PollInterval: 2 * time.Minute}, queue)
 	server := NewServer(queue, watcher, cfg)
 
 	req := httptest.NewRequest("GET", "/health", nil)
@@ -75,12 +76,12 @@ func TestHandleHealth(t *testing.T) {
 
 func TestHandleStatus(t *testing.T) {
 	cfg := &config.WatchConfig{
-		Enabled: true,
-		Paths:   []string{"/downloads"},
+		FolderWatchEnabled: true,
+		FolderWatchPaths:   []string{"/downloads"},
 	}
 	extractCfg := &config.ExtractConfig{Parallel: 1}
 	queue := extract.NewQueue(extractCfg, nil)
-	watcher := extract.NewWatcher(cfg, extractCfg, queue)
+	watcher := extract.NewWatcher(cfg, extractCfg, &config.TimingConfig{PollInterval: 2 * time.Minute}, queue)
 	server := NewServer(queue, watcher, cfg)
 
 	req := httptest.NewRequest("GET", "/status", nil)
@@ -104,10 +105,10 @@ func TestHandleStatus(t *testing.T) {
 }
 
 func TestHandleMetrics(t *testing.T) {
-	cfg := &config.WatchConfig{Enabled: false}
+	cfg := &config.WatchConfig{FolderWatchEnabled: false}
 	extractCfg := &config.ExtractConfig{Parallel: 1}
 	queue := extract.NewQueue(extractCfg, nil)
-	watcher := extract.NewWatcher(cfg, extractCfg, queue)
+	watcher := extract.NewWatcher(cfg, extractCfg, &config.TimingConfig{PollInterval: 2 * time.Minute}, queue)
 	server := NewServer(queue, watcher, cfg)
 
 	req := httptest.NewRequest("GET", "/metrics", nil)
@@ -126,10 +127,10 @@ func TestHandleMetrics(t *testing.T) {
 }
 
 func TestRegisterClient(t *testing.T) {
-	cfg := &config.WatchConfig{Enabled: false}
+	cfg := &config.WatchConfig{FolderWatchEnabled: false}
 	extractCfg := &config.ExtractConfig{Parallel: 1}
 	queue := extract.NewQueue(extractCfg, nil)
-	watcher := extract.NewWatcher(cfg, extractCfg, queue)
+	watcher := extract.NewWatcher(cfg, extractCfg, &config.TimingConfig{PollInterval: 2 * time.Minute}, queue)
 	server := NewServer(queue, watcher, cfg)
 
 	appCfg := &config.StarrApp{
@@ -147,10 +148,10 @@ func TestRegisterClient(t *testing.T) {
 }
 
 func TestHandleReady(t *testing.T) {
-	cfg := &config.WatchConfig{Enabled: false}
+	cfg := &config.WatchConfig{FolderWatchEnabled: false}
 	extractCfg := &config.ExtractConfig{Parallel: 1}
 	queue := extract.NewQueue(extractCfg, nil)
-	watcher := extract.NewWatcher(cfg, extractCfg, queue)
+	watcher := extract.NewWatcher(cfg, extractCfg, &config.TimingConfig{PollInterval: 2 * time.Minute}, queue)
 	server := NewServer(queue, watcher, cfg)
 
 	req := httptest.NewRequest("GET", "/ready", nil)
@@ -164,10 +165,10 @@ func TestHandleReady(t *testing.T) {
 }
 
 func TestHandleReadyWithDisconnectedClient(t *testing.T) {
-	cfg := &config.WatchConfig{Enabled: false}
+	cfg := &config.WatchConfig{FolderWatchEnabled: false}
 	extractCfg := &config.ExtractConfig{Parallel: 1}
 	queue := extract.NewQueue(extractCfg, nil)
-	watcher := extract.NewWatcher(cfg, extractCfg, queue)
+	watcher := extract.NewWatcher(cfg, extractCfg, &config.TimingConfig{PollInterval: 2 * time.Minute}, queue)
 	server := NewServer(queue, watcher, cfg)
 
 	appCfg := &config.StarrApp{
@@ -190,11 +191,11 @@ func TestHandleReadyWithDisconnectedClient(t *testing.T) {
 
 func TestHandleStatusWithClients(t *testing.T) {
 	cfg := &config.WatchConfig{
-		Enabled: false,
+		FolderWatchEnabled: false,
 	}
 	extractCfg := &config.ExtractConfig{Parallel: 1}
 	queue := extract.NewQueue(extractCfg, nil)
-	watcher := extract.NewWatcher(cfg, extractCfg, queue)
+	watcher := extract.NewWatcher(cfg, extractCfg, &config.TimingConfig{PollInterval: 2 * time.Minute}, queue)
 	server := NewServer(queue, watcher, cfg)
 
 	appCfg := &config.StarrApp{

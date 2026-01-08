@@ -67,7 +67,7 @@ func main() {
 		}
 	})
 
-	watcher := extract.NewWatcher(&cfg.Watch, &cfg.Extract, queue)
+	watcher := extract.NewWatcher(&cfg.Watch, &cfg.Extract, &cfg.Timing, queue)
 	watcher.Start()
 
 	healthServer := health.NewServer(queue, watcher, &cfg.Watch)
@@ -75,8 +75,8 @@ func main() {
 	clients := initStarrClients(cfg, queue, healthServer)
 
 	log.Printf("Started %d starr clients", len(clients))
-	if cfg.Watch.Enabled {
-		log.Printf("Folder watcher enabled for %d paths", len(cfg.Watch.Paths))
+	if cfg.Watch.FolderWatchEnabled {
+		log.Printf("Folder watcher enabled for %d paths", len(cfg.Watch.FolderWatchPaths))
 	}
 
 	go func() {

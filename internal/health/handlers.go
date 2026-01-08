@@ -105,8 +105,8 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 			"extracting": stats.Extracting,
 		},
 		"folder_watcher": map[string]interface{}{
-			"enabled": s.watcherCfg.Enabled,
-			"paths":   s.watcherCfg.Paths,
+			"enabled": s.watcherCfg.FolderWatchEnabled,
+			"paths":   s.watcherCfg.FolderWatchPaths,
 		},
 		"apps":           apps,
 		"uptime_seconds": int(time.Since(s.startTime).Seconds()),

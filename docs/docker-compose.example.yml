@@ -9,20 +9,15 @@ services:
       # Extraction settings
       - EXTRACT_PARALLEL=2
       - EXTRACT_DELETE_ORIG=true
-      - EXTRACT_TIMEOUT=10m
       - EXTRACT_PASSWORDS=
-
-      # Folder watching
-      - WATCH_ENABLED=false
-      - WATCH_PATHS=/downloads
-      - WATCH_INTERVAL=30s
-      - WATCH_DELETE_DELAY=5m
 
       # Timing
       - POLL_INTERVAL=2m
-      - START_DELAY=1m
-      - RETRY_DELAY=5m
-      - MAX_RETRIES=3
+      - MARKER_CLEANUP_INTERVAL=1h
+
+      # Folder watching
+      - FOLDER_WATCH_ENABLED=false
+      - FOLDER_WATCH_PATHS=/downloads
 
       # Sonarr
       - SONARR_URL=http://sonarr:8989

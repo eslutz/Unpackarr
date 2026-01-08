@@ -41,15 +41,23 @@ Key settings (see [docs/.env.example](docs/.env.example) for all options):
 | `EXTRACT_PARALLEL` | `1` | Concurrent extractions |
 | `EXTRACT_DELETE_ORIG` | `true` | Delete archives after extraction |
 
+### Timing
+
+Duration values support: `s` (seconds), `m` (minutes), `h` (hours). Examples: `30s`, `5m`, `2h`, `90m`, `1h30m`
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `POLL_INTERVAL` | `2m` | How often to check for new work (applies to both folder watching and *arr app queue polling) |
+| `MARKER_CLEANUP_INTERVAL` | `1h` | How often to clean up orphaned marker files |
+
 ### Folder Watching
 
 Standalone mode for apps not supported by `golift.io/starr` (e.g., Whisparr). See [docs/.env.example](docs/.env.example) for all options.
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `WATCH_ENABLED` | `false` | Enable folder watching |
-| `WATCH_PATHS` | `/downloads` | Comma-separated watch paths |
-| `WATCH_INTERVAL` | `30s` | Directory scan interval |
+| `FOLDER_WATCH_ENABLED` | `false` | Enable folder watching |
+| `FOLDER_WATCH_PATHS` | `/downloads` | Comma-separated watch paths |
 
 #### Marker Files
 
@@ -57,14 +65,10 @@ When `EXTRACT_DELETE_ORIG` is set to `false`, Unpackarr uses hidden marker files
 
 - **Format**: `.<archive-name>.unpackarr` (e.g., `.movie.rar.unpackarr`)
 - **Created**: After successful extraction
-- **Cleanup**: Orphaned markers (where the archive no longer exists) are automatically removed on startup and at the configured `WATCH_CLEANUP_INTERVAL`
+- **Cleanup**: Orphaned markers (where the archive no longer exists) are automatically removed on startup and at the configured `MARKER_CLEANUP_INTERVAL`
 - **Multi-part archives**: One marker per main archive file (e.g., only `.movie.rar.unpackarr` for `movie.rar`, `movie.r00`, etc.)
 
 **Note**: When `EXTRACT_DELETE_ORIG=true`, marker files are not created since archives are deleted after extraction.
-
-### Timing
-
-Timing configuration for \*arr app integrations (polling intervals, delays, retries). See [docs/.env.example](docs/.env.example) for all timing options.
 
 ### Webhook Notifications
 
