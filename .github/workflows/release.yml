@@ -63,7 +63,7 @@ jobs:
             -o unpackarr-darwin-arm64 ./cmd/unpackarr
 
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: |
             unpackarr-linux-amd64
