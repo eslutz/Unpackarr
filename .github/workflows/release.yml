@@ -1,77 +1,104 @@
+# ==============================================================================
+# Release Pipeline
+# Runs after CI succeeds on the main branch.
+# Reads VERSION file, creates git tag, builds/pushes image, and creates release.
+# ==============================================================================
+
 name: Release
 
 on:
-  push:
-    tags:
-      - "v*"
+  workflow_run:
+    workflows: ["CI"]
+    branches: [main]
+    types:
+      - completed
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  packages: write
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  build:
+  check:
+    name: Check Version
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      packages: write
-
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+      is_prerelease: ${{ steps.version.outputs.is_prerelease }}
+      exists: ${{ steps.check.outputs.exists }}
     steps:
-      - uses: actions/checkout@v6
+      - name: Checkout repository
+        uses: actions/checkout@v6
         with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Read VERSION file
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(cat VERSION | tr -d '[:space:]')
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+          if [[ "$version" == *-* ]]; then
+            echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check if tag exists
+        id: check
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        shell: bash
+        run: |
+          if git ls-remote --tags origin "refs/tags/$TAG" | grep -q .; then
+            echo "Tag $TAG already exists."
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Tag $TAG is new."
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  release:
+    name: Release
+    needs: check
+    if: needs.check.outputs.exists == 'false'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 0
 
-      - name: Set up Go
-        uses: actions/setup-go@v6
-        with:
-          go-version: "1.24"
+      - name: Get current date
+        id: date
+        run: echo "date=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
 
-      - name: Get version
-        id: version
-        run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-
-      - name: Build binaries
-        run: |
-          COMMIT=$(git rev-parse --short HEAD)
-          DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-
-          GOOS=linux GOARCH=amd64 go build -ldflags="-s -w \
-            -X github.com/eslutz/unpackarr/pkg/version.Version=${{ env.VERSION }} \
-            -X github.com/eslutz/unpackarr/pkg/version.Commit=$COMMIT \
-            -X github.com/eslutz/unpackarr/pkg/version.Date=$DATE" \
-            -o unpackarr-linux-amd64 ./cmd/unpackarr
-
-          GOOS=linux GOARCH=arm64 go build -ldflags="-s -w \
-            -X github.com/eslutz/unpackarr/pkg/version.Version=${{ env.VERSION }} \
-            -X github.com/eslutz/unpackarr/pkg/version.Commit=$COMMIT \
-            -X github.com/eslutz/unpackarr/pkg/version.Date=$DATE" \
-            -o unpackarr-linux-arm64 ./cmd/unpackarr
-
-          GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w \
-            -X github.com/eslutz/unpackarr/pkg/version.Version=${{ env.VERSION }} \
-            -X github.com/eslutz/unpackarr/pkg/version.Commit=$COMMIT \
-            -X github.com/eslutz/unpackarr/pkg/version.Date=$DATE" \
-            -o unpackarr-darwin-amd64 ./cmd/unpackarr
-
-          GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w \
-            -X github.com/eslutz/unpackarr/pkg/version.Version=${{ env.VERSION }} \
-            -X github.com/eslutz/unpackarr/pkg/version.Commit=$COMMIT \
-            -X github.com/eslutz/unpackarr/pkg/version.Date=$DATE" \
-            -o unpackarr-darwin-arm64 ./cmd/unpackarr
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            unpackarr-linux-amd64
-            unpackarr-linux-arm64
-            unpackarr-darwin-amd64
-            unpackarr-darwin-arm64
+      - name: Create and push git tag
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.check.outputs.tag }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" "$SHA" -m "Release $TAG"
+          git push origin "$TAG"
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -89,10 +116,9 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
-            type=raw,value=latest
+            type=raw,value=${{ needs.check.outputs.tag }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ needs.check.outputs.version }},enable=${{ needs.check.outputs.is_prerelease == 'false' }}
+            type=raw,value=latest,enable=${{ needs.check.outputs.is_prerelease == 'false' }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
@@ -102,9 +128,27 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            VERSION=${{ env.VERSION }}
-            COMMIT=${{ github.sha }}
-            DATE=${{ github.event.head_commit.timestamp }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: |
+            VERSION=${{ needs.check.outputs.tag }}
+            COMMIT=${{ github.event.workflow_run.head_sha }}
+            DATE=${{ steps.date.outputs.date }}
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.check.outputs.tag }}
+          IS_PRERELEASE: ${{ needs.check.outputs.is_prerelease }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          flags=(--generate-notes)
+          if [[ "$IS_PRERELEASE" == "true" ]]; then
+            flags+=(--prerelease --latest=false)
+          else
+            flags+=(--latest)
+          fi
+
+          gh release create "$TAG" "${flags[@]}"
