@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/eslutz/unpackarr/internal/config"
@@ -13,21 +12,24 @@ import (
 )
 
 type Watcher struct {
-	config   *config.WatchConfig
-	extract  *config.ExtractConfig
-	queue    *Queue
-	stop     chan struct{}
-	mu       sync.RWMutex
-	tracked  map[string]time.Time
+	config          *config.WatchConfig
+	extract         *config.ExtractConfig
+	queue           *Queue
+	stop            chan struct{}
+	cleanupStop     chan struct{}
+	deleteOrig      bool
+	cleanupInterval time.Duration
 }
 
 func NewWatcher(cfg *config.WatchConfig, extractCfg *config.ExtractConfig, queue *Queue) *Watcher {
 	return &Watcher{
-		config:  cfg,
-		extract: extractCfg,
-		queue:   queue,
-		stop:    make(chan struct{}),
-		tracked: make(map[string]time.Time),
+		config:          cfg,
+		extract:         extractCfg,
+		queue:           queue,
+		stop:            make(chan struct{}),
+		cleanupStop:     make(chan struct{}),
+		deleteOrig:      extractCfg.DeleteOrig,
+		cleanupInterval: cfg.CleanupInterval,
 	}
 }
 
@@ -36,11 +38,18 @@ func (w *Watcher) Start() {
 		return
 	}
 
+	// Clean orphaned markers on startup
+	if !w.deleteOrig {
+		w.cleanOrphanedMarkers()
+	}
+
 	go w.run()
+	go w.runCleanup()
 }
 
 func (w *Watcher) Stop() {
 	close(w.stop)
+	close(w.cleanupStop)
 }
 
 func (w *Watcher) run() {
@@ -64,8 +73,6 @@ func (w *Watcher) scan() {
 	for _, path := range w.config.Paths {
 		w.scanPath(path)
 	}
-
-	w.cleanTracked()
 }
 
 func (w *Watcher) scanPath(basePath string) {
@@ -82,7 +89,7 @@ func (w *Watcher) scanPath(basePath string) {
 
 		fullPath := filepath.Join(basePath, entry.Name())
 
-		if w.hasArchives(fullPath) && !w.isTracked(fullPath) {
+		if w.hasArchives(fullPath) && !w.hasMarker(fullPath) {
 			w.queueExtraction(fullPath, entry.Name())
 		}
 	}
@@ -93,18 +100,7 @@ func (w *Watcher) hasArchives(path string) bool {
 	return len(archives) > 0
 }
 
-func (w *Watcher) isTracked(path string) bool {
-	w.mu.RLock()
-	_, exists := w.tracked[path]
-	w.mu.RUnlock()
-	return exists
-}
-
 func (w *Watcher) queueExtraction(path, name string) {
-	w.mu.Lock()
-	w.tracked[path] = time.Now()
-	w.mu.Unlock()
-
 	_, err := w.queue.Add(&Request{
 		Name:       name,
 		Path:       path,
@@ -115,22 +111,134 @@ func (w *Watcher) queueExtraction(path, name string) {
 
 	if err != nil {
 		log.Printf("[Watcher] Error queuing %s: %v", name, err)
-		w.mu.Lock()
-		delete(w.tracked, path)
-		w.mu.Unlock()
 	} else {
 		log.Printf("[Watcher] Queued: %s", name)
 	}
 }
 
-func (w *Watcher) cleanTracked() {
-	w.mu.Lock()
-	defer w.mu.Unlock()
+// markerPath returns the path to the hidden marker file for an archive
+func markerPath(archivePath string) string {
+	dir := filepath.Dir(archivePath)
+	base := filepath.Base(archivePath)
+	return filepath.Join(dir, "."+base+".unpackarr")
+}
 
-	cutoff := time.Now().Add(-24 * time.Hour)
-	for path, tracked := range w.tracked {
-		if tracked.Before(cutoff) {
-			delete(w.tracked, path)
+// hasMarker checks if a marker file exists for the given path
+// Only returns true when deleteOrig is false
+func (w *Watcher) hasMarker(path string) bool {
+	if w.deleteOrig {
+		return false
+	}
+
+	// Find first archive in the path
+	archives := xtractr.FindCompressedFiles(xtractr.Filter{Path: path})
+	if len(archives) == 0 {
+		return false
+	}
+
+	// Get first archive from map
+	for archivePath := range archives {
+		marker := markerPath(archivePath)
+		_, err := os.Stat(marker)
+		return err == nil
+	}
+
+	return false
+}
+
+// WriteMarkerForPath creates a marker file for the first archive found in the given path
+func WriteMarkerForPath(path string) error {
+	// Find first archive in the path
+	archives := xtractr.FindCompressedFiles(xtractr.Filter{Path: path})
+	if len(archives) == 0 {
+		return nil // No archives found, nothing to mark
+	}
+
+	// Get first archive from map
+	for archivePath := range archives {
+		return writeMarker(archivePath)
+	}
+
+	return nil
+}
+
+// writeMarker creates a marker file for the given archive path
+func writeMarker(archivePath string) error {
+	marker := markerPath(archivePath)
+	f, err := os.Create(marker)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if closeErr := f.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
+
+	// Write timestamp to marker file
+	_, err = f.WriteString(time.Now().Format(time.RFC3339) + "\n")
+	return err
+}
+
+// runCleanup periodically cleans orphaned marker files
+func (w *Watcher) runCleanup() {
+	if w.deleteOrig {
+		return
+	}
+
+	ticker := time.NewTicker(w.cleanupInterval)
+	defer ticker.Stop()
+
+	log.Printf("[Watcher] Started marker cleanup with interval %s", w.cleanupInterval)
+
+	for {
+		select {
+		case <-w.cleanupStop:
+			log.Println("[Watcher] Cleanup stopped")
+			return
+		case <-ticker.C:
+			w.cleanOrphanedMarkers()
+		}
+	}
+}
+
+// cleanOrphanedMarkers removes marker files where the corresponding archive no longer exists
+func (w *Watcher) cleanOrphanedMarkers() {
+	for _, basePath := range w.config.Paths {
+		err := filepath.Walk(basePath, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return nil // Skip errors and continue
+			}
+
+			if info.IsDir() {
+				return nil
+			}
+
+			// Check if this is a marker file
+			name := filepath.Base(path)
+			if !strings.HasPrefix(name, ".") || !strings.HasSuffix(name, ".unpackarr") {
+				return nil
+			}
+
+			// Extract the original archive name
+			archiveName := strings.TrimSuffix(strings.TrimPrefix(name, "."), ".unpackarr")
+			archivePath := filepath.Join(filepath.Dir(path), archiveName)
+
+			// Check if archive still exists
+			if _, err := os.Stat(archivePath); os.IsNotExist(err) {
+				// Archive doesn't exist, remove the marker
+				if err := os.Remove(path); err != nil {
+					log.Printf("[Watcher] Error removing orphaned marker %s: %v", path, err)
+				} else {
+					log.Printf("[Watcher] Removed orphaned marker: %s", name)
+				}
+			}
+
+			return nil
+		})
+
+		if err != nil {
+			log.Printf("[Watcher] Error cleaning markers in %s: %v", basePath, err)
 		}
 	}
 }

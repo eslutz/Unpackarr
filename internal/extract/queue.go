@@ -24,15 +24,17 @@ type Stats struct {
 }
 
 type Result struct {
-	Name      string
-	Source    string
-	Started   time.Time
-	Elapsed   time.Duration
-	Archives  int
-	Files     int
-	Size      int64
-	Success   bool
-	Error     error
+	Name       string
+	Source     string
+	Path       string
+	DeleteOrig bool
+	Started    time.Time
+	Elapsed    time.Duration
+	Archives   int
+	Files      int
+	Size       int64
+	Success    bool
+	Error      error
 }
 
 type Request struct {
@@ -73,7 +75,7 @@ func (q *Queue) Add(req *Request) (int, error) {
 			Path: req.Path,
 		},
 		CBFunction: func(resp *xtractr.Response) {
-			q.handleCallback(resp, req.Source)
+			q.handleCallback(resp, req)
 		},
 	})
 
@@ -100,7 +102,7 @@ func (q *Queue) Stop() {
 	}
 }
 
-func (q *Queue) handleCallback(resp *xtractr.Response, source string) {
+func (q *Queue) handleCallback(resp *xtractr.Response, req *Request) {
 	if !resp.Done {
 		q.mu.Lock()
 		q.stats.Waiting--
@@ -114,15 +116,17 @@ func (q *Queue) handleCallback(resp *xtractr.Response, source string) {
 	q.mu.Unlock()
 
 	result := &Result{
-		Name:     resp.X.Name,
-		Source:   source,
-		Started:  resp.Started,
-		Elapsed:  resp.Elapsed,
-		Archives: len(resp.Archives),
-		Files:    len(resp.NewFiles),
-		Size:     resp.Size,
-		Success:  resp.Error == nil,
-		Error:    resp.Error,
+		Name:       resp.X.Name,
+		Source:     req.Source,
+		Path:       req.Path,
+		DeleteOrig: req.DeleteOrig,
+		Started:    resp.Started,
+		Elapsed:    resp.Elapsed,
+		Archives:   len(resp.Archives),
+		Files:      len(resp.NewFiles),
+		Size:       resp.Size,
+		Success:    resp.Error == nil,
+		Error:      resp.Error,
 	}
 
 	if q.callback != nil {

@@ -32,60 +32,66 @@ All configuration is done via environment variables.
 
 ### Core Settings
 
+Key settings (see [docs/.env.example](docs/.env.example) for all options):
+
 | Variable | Default | Description |
-|----------|---------|-------------|
+| --- | --- | --- |
 | `HEALTH_PORT` | `8085` | HTTP server port |
 | `LOG_LEVEL` | `INFO` | Log level: DEBUG, INFO, WARN, ERROR |
 | `EXTRACT_PARALLEL` | `1` | Concurrent extractions |
 | `EXTRACT_DELETE_ORIG` | `true` | Delete archives after extraction |
-| `EXTRACT_PASSWORDS` | | Comma-separated passwords |
-| `EXTRACT_TIMEOUT` | `10m` | Max time per extraction |
 
 ### Folder Watching
 
+Standalone mode for apps not supported by `golift.io/starr` (e.g., Whisparr). See [docs/.env.example](docs/.env.example) for all options.
+
 | Variable | Default | Description |
-|----------|---------|-------------|
+| --- | --- | --- |
 | `WATCH_ENABLED` | `false` | Enable folder watching |
 | `WATCH_PATHS` | `/downloads` | Comma-separated watch paths |
 | `WATCH_INTERVAL` | `30s` | Directory scan interval |
-| `WATCH_DELETE_DELAY` | `5m` | Delay before deleting originals |
+
+#### Marker Files
+
+When `EXTRACT_DELETE_ORIG` is set to `false`, Unpackarr uses hidden marker files to prevent re-extracting archives across restarts. This is essential for users who keep archives for seeding torrents.
+
+- **Format**: `.<archive-name>.unpackarr` (e.g., `.movie.rar.unpackarr`)
+- **Created**: After successful extraction
+- **Cleanup**: Orphaned markers (where the archive no longer exists) are automatically removed on startup and at the configured `WATCH_CLEANUP_INTERVAL`
+- **Multi-part archives**: One marker per main archive file (e.g., only `.movie.rar.unpackarr` for `movie.rar`, `movie.r00`, etc.)
+
+**Note**: When `EXTRACT_DELETE_ORIG=true`, marker files are not created since archives are deleted after extraction.
 
 ### Timing
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `POLL_INTERVAL` | `2m` | Starr queue poll interval |
-| `START_DELAY` | `1m` | Wait after download completes |
-| `RETRY_DELAY` | `5m` | Wait between retries |
-| `MAX_RETRIES` | `3` | Maximum extraction retries |
+Timing configuration for \*arr app integrations (polling intervals, delays, retries). See [docs/.env.example](docs/.env.example) for all timing options.
 
 ### Webhook Notifications
 
+Optional notifications to Discord, Slack, Gotify, or custom JSON endpoints. See [docs/.env.example](docs/.env.example) for all options.
+
 | Variable | Default | Description |
-|----------|---------|-------------|
+| --- | --- | --- |
 | `WEBHOOK_URL` | | Webhook endpoint URL |
 | `WEBHOOK_TEMPLATE` | `discord` | Template: discord, slack, gotify, json |
 | `WEBHOOK_EVENTS` | `extracted,failed` | Events: queued, extracting, extracted, failed |
-| `WEBHOOK_TIMEOUT` | `10s` | HTTP timeout |
 
 ### *arr Apps (Sonarr, Radarr, Lidarr, Readarr)
 
-These apps are supported via the [golift.io/starr](https://github.com/golift/starr) package. For each app:
+These apps are supported via the [golift.io/starr](https://github.com/golift/starr) package. Each app uses the same pattern. Replace `{APP}` with `SONARR`, `RADARR`, `LIDARR`, or `READARR`. See [docs/.env.example](docs/.env.example) for detailed configuration.
 
 | Variable | Default | Description |
-|----------|---------|-------------|
+| --- | --- | --- |
 | `{APP}_URL` | | Base URL (e.g., <http://sonarr:8989>) |
 | `{APP}_API_KEY` | | API key from app settings |
 | `{APP}_PATHS` | `/downloads` | Comma-separated paths to monitor |
-| `{APP}_PROTOCOLS` | `torrent` | Protocols: torrent, usenet, or both |
-| `{APP}_TIMEOUT` | `30s` | API timeout |
 
 **Note**: Other *arr applications (e.g., Whisparr) not listed above can use the [Folder Watching](#folder-watching) feature for automatic extraction.
 
 ## Health Endpoints
 
 | Endpoint | Purpose |
-|----------|---------|
+| --- | --- |
 | `/ping` | Liveness check |
 | `/health` | Readiness check |
 | `/ready` | Deep health check (verifies starr connectivity) |

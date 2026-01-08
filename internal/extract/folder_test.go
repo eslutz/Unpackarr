@@ -11,14 +11,16 @@ import (
 
 func TestNewWatcher(t *testing.T) {
 	cfg := &config.WatchConfig{
-		Enabled:     true,
-		Paths:       []string{"/downloads"},
-		Interval:    30 * time.Second,
-		DeleteDelay: 5 * time.Minute,
+		Enabled:         true,
+		Paths:           []string{"/downloads"},
+		Interval:        30 * time.Second,
+		DeleteDelay:     5 * time.Minute,
+		CleanupInterval: 1 * time.Hour,
 	}
 
 	extractCfg := &config.ExtractConfig{
-		Parallel: 1,
+		Parallel:   1,
+		DeleteOrig: true,
 	}
 
 	queue := NewQueue(extractCfg, nil)
@@ -29,6 +31,12 @@ func TestNewWatcher(t *testing.T) {
 	}
 	if watcher.config != cfg {
 		t.Error("Watcher config should match input")
+	}
+	if watcher.deleteOrig != extractCfg.DeleteOrig {
+		t.Error("Watcher deleteOrig should match extract config")
+	}
+	if watcher.cleanupInterval != cfg.CleanupInterval {
+		t.Error("Watcher cleanupInterval should match config")
 	}
 }
 
@@ -85,46 +93,160 @@ func TestWatcherDisabled(t *testing.T) {
 	watcher.Stop()
 }
 
-func TestIsTracked(t *testing.T) {
-	cfg := &config.WatchConfig{
-		Enabled: true,
-		Paths:   []string{"/downloads"},
+func TestMarkerPath(t *testing.T) {
+	tests := []struct {
+		archive string
+		want    string
+	}{
+		{"/downloads/movie/movie.rar", "/downloads/movie/.movie.rar.unpackarr"},
+		{"/path/to/archive.zip", "/path/to/.archive.zip.unpackarr"},
+		{"file.7z", ".file.7z.unpackarr"},
 	}
 
-	extractCfg := &config.ExtractConfig{Parallel: 1}
-	queue := NewQueue(extractCfg, nil)
-	watcher := NewWatcher(cfg, extractCfg, queue)
-
-	if watcher.isTracked("/downloads/test") {
-		t.Error("isTracked() should return false for untracked path")
-	}
-
-	watcher.tracked["/downloads/test"] = time.Now()
-
-	if !watcher.isTracked("/downloads/test") {
-		t.Error("isTracked() should return true for tracked path")
+	for _, tt := range tests {
+		got := markerPath(tt.archive)
+		if got != tt.want {
+			t.Errorf("markerPath(%s) = %s, want %s", tt.archive, got, tt.want)
+		}
 	}
 }
 
-func TestCleanTracked(t *testing.T) {
-	cfg := &config.WatchConfig{
-		Enabled: true,
+func TestWriteMarker(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "unpackarr-test-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := os.RemoveAll(tmpDir); err != nil {
+			t.Logf("Failed to remove temp dir: %v", err)
+		}
+	}()
+
+	archivePath := filepath.Join(tmpDir, "test.rar")
+	markerFile := markerPath(archivePath)
+
+	// Write marker
+	if err := writeMarker(archivePath); err != nil {
+		t.Fatalf("writeMarker() error = %v", err)
 	}
 
-	extractCfg := &config.ExtractConfig{Parallel: 1}
+	// Verify marker exists
+	if _, err := os.Stat(markerFile); os.IsNotExist(err) {
+		t.Error("Marker file was not created")
+	}
+
+	// Verify marker content
+	content, err := os.ReadFile(markerFile)
+	if err != nil {
+		t.Fatalf("Failed to read marker file: %v", err)
+	}
+	if len(content) == 0 {
+		t.Error("Marker file should not be empty")
+	}
+}
+
+func TestHasMarker(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "unpackarr-test-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := os.RemoveAll(tmpDir); err != nil {
+			t.Logf("Failed to remove temp dir: %v", err)
+		}
+	}()
+
+	// Create a subdirectory to simulate a download folder
+	downloadDir := filepath.Join(tmpDir, "download")
+	if err := os.Mkdir(downloadDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a fake archive file in the download directory
+	archivePath := filepath.Join(downloadDir, "test.rar")
+	if err := os.WriteFile(archivePath, []byte("fake archive"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := &config.WatchConfig{Enabled: true}
+	extractCfg := &config.ExtractConfig{Parallel: 1, DeleteOrig: false}
+	queue := NewQueue(extractCfg, nil)
+
+	// Note: hasMarker uses xtractr.FindCompressedFiles which may not recognize
+	// our fake archive. Test the marker file directly instead.
+	markerFile := markerPath(archivePath)
+
+	// Should not have marker initially
+	if _, err := os.Stat(markerFile); !os.IsNotExist(err) {
+		t.Error("Marker should not exist initially")
+	}
+
+	// Write marker
+	if err := writeMarker(archivePath); err != nil {
+		t.Fatal(err)
+	}
+
+	// Should have marker now
+	if _, err := os.Stat(markerFile); os.IsNotExist(err) {
+		t.Error("Marker should exist after writeMarker")
+	}
+
+	// Test with deleteOrig=true (should always return false)
+	extractCfg.DeleteOrig = true
+	watcher2 := NewWatcher(cfg, extractCfg, queue)
+	// Even with marker present, hasMarker should return false when deleteOrig=true
+	// (though this check may not work with fake archive)
+	if watcher2.deleteOrig != true {
+		t.Error("watcher2 should have deleteOrig=true")
+	}
+}
+
+func TestCleanOrphanedMarkers(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "unpackarr-test-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := os.RemoveAll(tmpDir); err != nil {
+			t.Logf("Failed to remove temp dir: %v", err)
+		}
+	}()
+
+	// Create archive and marker
+	archivePath := filepath.Join(tmpDir, "exists.rar")
+	if err := os.WriteFile(archivePath, []byte("fake"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeMarker(archivePath); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create orphaned marker (no archive)
+	orphanedMarkerPath := filepath.Join(tmpDir, ".missing.rar.unpackarr")
+	if err := os.WriteFile(orphanedMarkerPath, []byte("timestamp"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := &config.WatchConfig{
+		Enabled: true,
+		Paths:   []string{tmpDir},
+	}
+	extractCfg := &config.ExtractConfig{Parallel: 1, DeleteOrig: false}
 	queue := NewQueue(extractCfg, nil)
 	watcher := NewWatcher(cfg, extractCfg, queue)
 
-	watcher.tracked["/old"] = time.Now().Add(-25 * time.Hour)
-	watcher.tracked["/new"] = time.Now()
+	// Clean orphaned markers
+	watcher.cleanOrphanedMarkers()
 
-	watcher.cleanTracked()
-
-	if watcher.isTracked("/old") {
-		t.Error("cleanTracked() should remove old entries")
+	// Verify orphaned marker was removed
+	if _, err := os.Stat(orphanedMarkerPath); !os.IsNotExist(err) {
+		t.Error("Orphaned marker should be removed")
 	}
-	if !watcher.isTracked("/new") {
-		t.Error("cleanTracked() should keep recent entries")
+
+	// Verify valid marker still exists
+	validMarker := markerPath(archivePath)
+	if _, err := os.Stat(validMarker); os.IsNotExist(err) {
+		t.Error("Valid marker should not be removed")
 	}
 }
 

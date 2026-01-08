@@ -33,6 +33,13 @@ func main() {
 		log.Printf("[Extract] Completed: %s (source: %s, success: %t, duration: %s)",
 			result.Name, result.Source, result.Success, result.Elapsed)
 
+		// Write marker file when not deleting originals to prevent re-extraction
+		if result.Success && !result.DeleteOrig {
+			if err := extract.WriteMarkerForPath(result.Path); err != nil {
+				log.Printf("[Extract] Warning: failed to write marker for %s: %v", result.Name, err)
+			}
+		}
+
 		metrics.RecordExtraction(result)
 
 		if webhook != nil {

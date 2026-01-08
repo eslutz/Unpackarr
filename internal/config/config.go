@@ -32,10 +32,11 @@ type ExtractConfig struct {
 }
 
 type WatchConfig struct {
-	Enabled     bool          `xml:"enabled"`
-	Paths       []string      `xml:"paths"`
-	Interval    time.Duration `xml:"interval"`
-	DeleteDelay time.Duration `xml:"delete_delay"`
+	Enabled         bool          `xml:"enabled"`
+	Paths           []string      `xml:"paths"`
+	Interval        time.Duration `xml:"interval"`
+	DeleteDelay     time.Duration `xml:"delete_delay"`
+	CleanupInterval time.Duration `xml:"cleanup_interval"`
 }
 
 type TimingConfig struct {
@@ -70,10 +71,11 @@ func Load() (*Config, error) {
 			Timeout:    10 * time.Minute,
 		},
 		Watch: WatchConfig{
-			Enabled:     false,
-			Paths:       []string{"/downloads"},
-			Interval:    30 * time.Second,
-			DeleteDelay: 5 * time.Minute,
+			Enabled:         false,
+			Paths:           []string{"/downloads"},
+			Interval:        30 * time.Second,
+			DeleteDelay:     5 * time.Minute,
+			CleanupInterval: 1 * time.Hour,
 		},
 		Timing: TimingConfig{
 			PollInterval: 2 * time.Minute,
