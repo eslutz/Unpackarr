@@ -3,6 +3,7 @@ package starr
 import (
 	"context"
 	"log"
+	"time"
 
 	"github.com/eslutz/unpackarr/internal/config"
 	"github.com/eslutz/unpackarr/internal/extract"
@@ -14,8 +15,8 @@ type ReadarrClient struct {
 	client *readarr.Readarr
 }
 
-func NewReadarr(cfg *config.StarrApp, queue *extract.Queue, timing *config.TimingConfig) *ReadarrClient {
-	base := NewClient("readarr", cfg, queue, timing)
+func NewReadarr(cfg *config.StarrApp, queue *extract.Queue, timing *config.TimingConfig, starrTimeout time.Duration) *ReadarrClient {
+	base := NewClient("readarr", cfg, queue, timing, starrTimeout)
 	rc := &ReadarrClient{
 		Client: base,
 		client: readarr.New(base.Config()),

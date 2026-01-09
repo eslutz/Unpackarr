@@ -3,6 +3,7 @@ package starr
 import (
 	"context"
 	"log"
+	"time"
 
 	"github.com/eslutz/unpackarr/internal/config"
 	"github.com/eslutz/unpackarr/internal/extract"
@@ -14,8 +15,8 @@ type RadarrClient struct {
 	client *radarr.Radarr
 }
 
-func NewRadarr(cfg *config.StarrApp, queue *extract.Queue, timing *config.TimingConfig) *RadarrClient {
-	base := NewClient("radarr", cfg, queue, timing)
+func NewRadarr(cfg *config.StarrApp, queue *extract.Queue, timing *config.TimingConfig, starrTimeout time.Duration) *RadarrClient {
+	base := NewClient("radarr", cfg, queue, timing, starrTimeout)
 	rc := &RadarrClient{
 		Client: base,
 		client: radarr.New(base.Config()),

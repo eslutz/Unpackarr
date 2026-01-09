@@ -13,14 +13,15 @@ import (
 )
 
 type Client struct {
-	name      string
-	config    *config.StarrApp
-	queue     *extract.Queue
-	timing    *config.TimingConfig
-	stop      chan struct{}
-	mu        sync.RWMutex
-	connected bool
-	queueSize int
+	name        string
+	config      *config.StarrApp
+	queue       *extract.Queue
+	timing      *config.TimingConfig
+	starrTimeout time.Duration
+	stop        chan struct{}
+	mu          sync.RWMutex
+	connected   bool
+	queueSize   int
 }
 
 type QueueItem struct {
@@ -33,13 +34,14 @@ type QueueItem struct {
 	DownloadID string
 }
 
-func NewClient(name string, cfg *config.StarrApp, queue *extract.Queue, timing *config.TimingConfig) *Client {
+func NewClient(name string, cfg *config.StarrApp, queue *extract.Queue, timing *config.TimingConfig, starrTimeout time.Duration) *Client {
 	return &Client{
-		name:   name,
-		config: cfg,
-		queue:  queue,
-		timing: timing,
-		stop:   make(chan struct{}),
+		name:         name,
+		config:       cfg,
+		queue:        queue,
+		timing:       timing,
+		starrTimeout: starrTimeout,
+		stop:         make(chan struct{}),
 	}
 }
 
@@ -63,7 +65,7 @@ func (c *Client) run(poller func(context.Context, *Client) error) {
 			log.Printf("[%s] Stopped", c.name)
 			return
 		case <-ticker.C:
-			ctx, cancel := context.WithTimeout(context.Background(), c.config.Timeout)
+			ctx, cancel := context.WithTimeout(context.Background(), c.starrTimeout)
 			err := poller(ctx, c)
 			cancel()
 
@@ -82,6 +84,7 @@ func (c *Client) Config() *starr.Config {
 	return &starr.Config{
 		URL:    c.config.URL,
 		APIKey: c.config.APIKey,
+		Client: starr.Client(c.starrTimeout, false),
 	}
 }
 

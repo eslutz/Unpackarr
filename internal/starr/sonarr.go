@@ -3,6 +3,7 @@ package starr
 import (
 	"context"
 	"log"
+	"time"
 
 	"github.com/eslutz/unpackarr/internal/config"
 	"github.com/eslutz/unpackarr/internal/extract"
@@ -14,8 +15,8 @@ type SonarrClient struct {
 	client *sonarr.Sonarr
 }
 
-func NewSonarr(cfg *config.StarrApp, queue *extract.Queue, timing *config.TimingConfig) *SonarrClient {
-	base := NewClient("sonarr", cfg, queue, timing)
+func NewSonarr(cfg *config.StarrApp, queue *extract.Queue, timing *config.TimingConfig, starrTimeout time.Duration) *SonarrClient {
+	base := NewClient("sonarr", cfg, queue, timing, starrTimeout)
 	sc := &SonarrClient{
 		Client: base,
 		client: sonarr.New(base.Config()),

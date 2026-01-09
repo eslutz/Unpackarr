@@ -104,25 +104,25 @@ func initStarrClients(cfg *config.Config, queue *extract.Queue, server *health.S
 	clients := []*starr.Client{}
 
 	if cfg.Sonarr != nil && cfg.Sonarr.URL != "" {
-		client := starr.NewSonarr(cfg.Sonarr, queue, &cfg.Timing)
+		client := starr.NewSonarr(cfg.Sonarr, queue, &cfg.Timing, cfg.Timing.StarrTimeout)
 		server.RegisterClient("sonarr", client.Client)
 		clients = append(clients, client.Client)
 	}
 
 	if cfg.Radarr != nil && cfg.Radarr.URL != "" {
-		client := starr.NewRadarr(cfg.Radarr, queue, &cfg.Timing)
+		client := starr.NewRadarr(cfg.Radarr, queue, &cfg.Timing, cfg.Timing.StarrTimeout)
 		server.RegisterClient("radarr", client.Client)
 		clients = append(clients, client.Client)
 	}
 
 	if cfg.Lidarr != nil && cfg.Lidarr.URL != "" {
-		client := starr.NewLidarr(cfg.Lidarr, queue, &cfg.Timing)
+		client := starr.NewLidarr(cfg.Lidarr, queue, &cfg.Timing, cfg.Timing.StarrTimeout)
 		server.RegisterClient("lidarr", client.Client)
 		clients = append(clients, client.Client)
 	}
 
 	if cfg.Readarr != nil && cfg.Readarr.URL != "" {
-		client := starr.NewReadarr(cfg.Readarr, queue, &cfg.Timing)
+		client := starr.NewReadarr(cfg.Readarr, queue, &cfg.Timing, cfg.Timing.StarrTimeout)
 		server.RegisterClient("readarr", client.Client)
 		clients = append(clients, client.Client)
 	}

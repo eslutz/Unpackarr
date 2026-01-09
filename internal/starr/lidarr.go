@@ -3,6 +3,7 @@ package starr
 import (
 	"context"
 	"log"
+	"time"
 
 	"github.com/eslutz/unpackarr/internal/config"
 	"github.com/eslutz/unpackarr/internal/extract"
@@ -14,8 +15,8 @@ type LidarrClient struct {
 	client *lidarr.Lidarr
 }
 
-func NewLidarr(cfg *config.StarrApp, queue *extract.Queue, timing *config.TimingConfig) *LidarrClient {
-	base := NewClient("lidarr", cfg, queue, timing)
+func NewLidarr(cfg *config.StarrApp, queue *extract.Queue, timing *config.TimingConfig, starrTimeout time.Duration) *LidarrClient {
+	base := NewClient("lidarr", cfg, queue, timing, starrTimeout)
 	lc := &LidarrClient{
 		Client: base,
 		client: lidarr.New(base.Config()),

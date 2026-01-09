@@ -15,7 +15,6 @@ func TestNewClient(t *testing.T) {
 		APIKey:    "test-key",
 		Paths:     []string{"/downloads"},
 		Protocols: []string{"torrent"},
-		Timeout:   30 * time.Second,
 	}
 
 	extractCfg := &config.ExtractConfig{Parallel: 1}
@@ -23,9 +22,10 @@ func TestNewClient(t *testing.T) {
 
 	timing := &config.TimingConfig{
 		PollInterval: 2 * time.Minute,
+		StarrTimeout: 30 * time.Second,
 	}
 
-	client := NewClient("test", cfg, queue, timing)
+	client := NewClient("test", cfg, queue, timing, 30*time.Second)
 	if client == nil {
 		t.Fatal("NewClient() should not return nil")
 	}
@@ -44,7 +44,7 @@ func TestClientConfig(t *testing.T) {
 	queue := extract.NewQueue(extractCfg, nil)
 	timing := &config.TimingConfig{}
 
-	client := NewClient("test", cfg, queue, timing)
+	client := NewClient("test", cfg, queue, timing, 30*time.Second)
 	starrCfg := client.Config()
 
 	if starrCfg.URL != cfg.URL {
@@ -67,7 +67,7 @@ func TestShouldProcess(t *testing.T) {
 	queue := extract.NewQueue(extractCfg, nil)
 	timing := &config.TimingConfig{}
 
-	client := NewClient("test", cfg, queue, timing)
+	client := NewClient("test", cfg, queue, timing, 30*time.Second)
 
 	tests := []struct {
 		name     string
@@ -120,7 +120,7 @@ func TestClientStatus(t *testing.T) {
 	queue := extract.NewQueue(extractCfg, nil)
 	timing := &config.TimingConfig{}
 
-	client := NewClient("test", cfg, queue, timing)
+	client := NewClient("test", cfg, queue, timing, 30*time.Second)
 
 	connected, queueSize := client.Status()
 	if connected {
@@ -173,15 +173,14 @@ func TestClientStop(t *testing.T) {
 	queue := extract.NewQueue(extractCfg, nil)
 	timing := &config.TimingConfig{}
 
-	client := NewClient("test", cfg, queue, timing)
+	client := NewClient("test", cfg, queue, timing, 30*time.Second)
 	client.Stop()
 }
 
 func TestClientStart(t *testing.T) {
 	cfg := &config.StarrApp{
-		URL:     "http://test:8989",
-		APIKey:  "test",
-		Timeout: 1 * time.Second,
+		URL:    "http://test:8989",
+		APIKey: "test",
 	}
 
 	extractCfg := &config.ExtractConfig{Parallel: 1}
@@ -190,7 +189,7 @@ func TestClientStart(t *testing.T) {
 		PollInterval: 100 * time.Millisecond,
 	}
 
-	client := NewClient("test", cfg, queue, timing)
+	client := NewClient("test", cfg, queue, timing, 1*time.Second)
 
 	testPoller := func(ctx context.Context, c *Client) error {
 		return nil

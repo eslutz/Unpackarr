@@ -38,6 +38,7 @@ type WatchConfig struct {
 
 type TimingConfig struct {
 	PollInterval time.Duration `xml:"poll_interval"`
+	StarrTimeout time.Duration `xml:"starr_timeout"`
 }
 
 type WebhookConfig struct {
@@ -48,11 +49,10 @@ type WebhookConfig struct {
 }
 
 type StarrApp struct {
-	URL       string        `xml:"url"`
-	APIKey    string        `xml:"api_key"`
-	Paths     []string      `xml:"paths"`
-	Protocols []string      `xml:"protocols"`
-	Timeout   time.Duration `xml:"timeout"`
+	URL       string   `xml:"url"`
+	APIKey    string   `xml:"api_key"`
+	Paths     []string `xml:"paths"`
+	Protocols []string `xml:"protocols"`
 }
 
 func Load() (*Config, error) {
@@ -70,6 +70,7 @@ func Load() (*Config, error) {
 		},
 		Timing: TimingConfig{
 			PollInterval: 2 * time.Minute,
+			StarrTimeout: 30 * time.Second,
 		},
 		Webhook: WebhookConfig{
 			Template: "discord",

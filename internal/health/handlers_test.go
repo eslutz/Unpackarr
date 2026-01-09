@@ -138,7 +138,7 @@ func TestRegisterClient(t *testing.T) {
 		APIKey: "test",
 	}
 	timing := &config.TimingConfig{}
-	client := starr.NewClient("test", appCfg, queue, timing)
+	client := starr.NewClient("test", appCfg, queue, timing, 30*time.Second)
 
 	server.RegisterClient("test", client)
 
@@ -176,7 +176,7 @@ func TestHandleReadyWithDisconnectedClient(t *testing.T) {
 		APIKey: "test",
 	}
 	timing := &config.TimingConfig{}
-	client := starr.NewClient("test", appCfg, queue, timing)
+	client := starr.NewClient("test", appCfg, queue, timing, 30*time.Second)
 	server.RegisterClient("test", client)
 
 	req := httptest.NewRequest("GET", "/ready", nil)
@@ -203,7 +203,7 @@ func TestHandleStatusWithClients(t *testing.T) {
 		APIKey: "test",
 	}
 	timing := &config.TimingConfig{}
-	client := starr.NewClient("sonarr", appCfg, queue, timing)
+	client := starr.NewClient("sonarr", appCfg, queue, timing, 30*time.Second)
 	server.RegisterClient("sonarr", client)
 
 	req := httptest.NewRequest("GET", "/status", nil)
