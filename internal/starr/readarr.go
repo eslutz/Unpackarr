@@ -33,9 +33,13 @@ func (r *ReadarrClient) poll(ctx context.Context, c *Client) error {
 
 	c.SetQueueSize(queue.TotalRecords)
 	logger.Debug("[Readarr] Polled queue: %d total records", queue.TotalRecords)
+	logger.Debug("[Readarr] Configured paths: %v, protocols: %v", c.config.Paths, c.config.Protocols)
 
 	matched := 0
 	for _, record := range queue.Records {
+		logger.Debug("[Readarr] Processing: %s (status=%s, state=%s, trackedStatus=%s, path=%s, protocol=%s)",
+			record.Title, record.Status, record.TrackedDownloadState, record.TrackedDownloadStatus, record.OutputPath, record.Protocol)
+
 		item := &QueueItem{
 			ID:         record.ID,
 			Path:       record.OutputPath,
@@ -47,12 +51,15 @@ func (r *ReadarrClient) poll(ctx context.Context, c *Client) error {
 		}
 
 		if !c.ShouldProcess(item) {
-			logger.Debug("[Readarr] Filtered out %s (path=%s, protocol=%s)", item.Name, item.Path, item.Protocol)
+			logger.Debug("[Readarr] Filtered out %s (ShouldProcess returned false)", item.Name)
 			continue
 		}
 
+		logger.Debug("[Readarr] %s passed path/protocol checks", item.Name)
+
 		// Queue extraction when download is completed and waiting for import (archived files)
 		if record.Status == "completed" && record.TrackedDownloadState == "importPending" {
+			logger.Debug("[Readarr] %s matches extraction criteria (completed + importPending)", item.Name)
 			matched++
 			if err := c.QueueExtract(item); err != nil {
 				logger.Error("[Readarr] Queue extract error for %s: %v", item.Name, err)
@@ -60,7 +67,7 @@ func (r *ReadarrClient) poll(ctx context.Context, c *Client) error {
 				logger.Info("[Readarr] Queued extraction: %s", item.Name)
 			}
 		} else {
-			logger.Debug("[Readarr] Skipped %s (status=%s, state=%s)", record.Title, record.Status, record.TrackedDownloadState)
+			logger.Debug("[Readarr] Skipped %s (status=%s, state=%s, does not match completed+importPending)", record.Title, record.Status, record.TrackedDownloadState)
 		}
 	}
 

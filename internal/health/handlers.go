@@ -48,22 +48,26 @@ func (s *Server) Start(port int) error {
 }
 
 func (s *Server) handlePing(w http.ResponseWriter, r *http.Request) {
+	logger.Debug("[Health] Ping request from %s", r.RemoteAddr)
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
+	logger.Debug("[Health] Health check request from %s", r.RemoteAddr)
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]bool{"healthy": true})
 }
 
 func (s *Server) handleReady(w http.ResponseWriter, r *http.Request) {
+	logger.Debug("[Health] Readiness check request from %s", r.RemoteAddr)
 	ready := true
 	reasons := []string{}
 
 	if s.queue == nil {
 		ready = false
 		reasons = append(reasons, "queue not initialized")
+		logger.Debug("[Health] Readiness check failed: queue not initialized")
 	}
 
 	for name, client := range s.clients {
@@ -71,7 +75,14 @@ func (s *Server) handleReady(w http.ResponseWriter, r *http.Request) {
 		if !connected {
 			ready = false
 			reasons = append(reasons, fmt.Sprintf("%s disconnected", name))
+			logger.Debug("[Health] Readiness check failed: %s disconnected", name)
 		}
+	}
+
+	if ready {
+		logger.Debug("[Health] Readiness check passed")
+	} else {
+		logger.Debug("[Health] Readiness check failed: %v", reasons)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -88,6 +99,7 @@ func (s *Server) handleReady(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
+	logger.Debug("[Health] Status request from %s", r.RemoteAddr)
 	stats := s.queue.Stats()
 
 	apps := make(map[string]any)

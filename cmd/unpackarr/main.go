@@ -25,9 +25,16 @@ func main() {
 	}
 
 	logger.SetLevel(cfg.LogLevel)
+	logger.Debug("[Main] Log level set to: %s", cfg.LogLevel)
 
+	logger.Debug("[Main] Initializing metrics")
 	metrics := health.NewMetrics()
+
+	webhookEnabled := cfg.Webhook.URL != ""
+	logger.Debug("[Main] Initializing webhook (enabled: %t)", webhookEnabled)
 	webhook := notify.NewWebhook(&cfg.Webhook)
+
+	logger.Debug("[Main] Initializing extraction queue")
 
 	queue := extract.NewQueue(&cfg.Extract, func(result *extract.Result) {
 		logger.Info("[Extract] Completed: %s (source: %s, success: %t, duration: %s)",

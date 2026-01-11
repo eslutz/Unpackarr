@@ -134,6 +134,9 @@ func (c *Config) EnabledApps() []string {
 }
 
 func (s *StarrApp) HasPath(path string) bool {
+	if path == "" {
+		return false
+	}
 	for _, p := range s.Paths {
 		if strings.HasPrefix(path, p) {
 			return true

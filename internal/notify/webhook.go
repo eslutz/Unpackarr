@@ -34,17 +34,28 @@ func NewWebhook(cfg *config.WebhookConfig) *Webhook {
 
 func (w *Webhook) Notify(result *extract.Result) {
 	if w == nil {
+		logger.Debug("[Webhook] Skipping notification (webhook not configured)")
 		return
 	}
+
+	logger.Debug("[Webhook] Processing notification for %s (success=%t)", result.Name, result.Success)
 
 	event := w.determineEvent(result)
+	logger.Debug("[Webhook] Event determined: %s", event)
+
 	if !w.shouldNotify(event) {
+		logger.Debug("[Webhook] Skipping notification for event %s (not in configured events: %v)", event, w.config.Events)
 		return
 	}
 
+	logger.Debug("[Webhook] Building payload (template: %s)", w.config.Template)
 	payload := w.buildPayload(result, event)
+	logger.Debug("[Webhook] Payload built: %d bytes", len(payload))
+
 	if err := w.send(payload); err != nil {
 		logger.Error("[Webhook] Send error: %v", err)
+	} else {
+		logger.Debug("[Webhook] Notification sent successfully")
 	}
 }
 
@@ -199,6 +210,8 @@ func (w *Webhook) jsonPayload(result *extract.Result, event string) []byte {
 }
 
 func (w *Webhook) send(payload []byte) error {
+	logger.Debug("[Webhook] Sending notification (timeout: %s)", w.config.Timeout)
+
 	ctx, cancel := context.WithTimeout(context.Background(), w.config.Timeout)
 	defer cancel()
 
@@ -211,20 +224,25 @@ func (w *Webhook) send(payload []byte) error {
 
 	resp, err := w.client.Do(req)
 	if err != nil {
+		logger.Debug("[Webhook] HTTP request failed: %v", err)
 		return fmt.Errorf("send request: %w", err)
 	}
 	defer func() {
 		_ = resp.Body.Close()
 	}()
 
+	logger.Debug("[Webhook] Received response: status=%d", resp.StatusCode)
+
 	// Limit response body to prevent memory exhaustion from malicious endpoints
 	limitedBody := io.LimitReader(resp.Body, 1024*1024) // 1MB limit
 	_, _ = io.ReadAll(limitedBody)
 
 	if resp.StatusCode >= 400 {
+		logger.Debug("[Webhook] Server returned error status: %d", resp.StatusCode)
 		return fmt.Errorf("webhook returned status %d", resp.StatusCode)
 	}
 
+	logger.Debug("[Webhook] Request completed successfully")
 	return nil
 }
 

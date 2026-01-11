@@ -61,8 +61,13 @@ func NewQueue(cfg *config.ExtractConfig, callback func(*Result)) *Queue {
 }
 
 func (q *Queue) Add(req *Request) (int, error) {
+	logger.Debug("[Queue] Adding extraction request: name=%s, path=%s, source=%s, deleteOrig=%t",
+		req.Name, req.Path, req.Source, req.DeleteOrig)
+
 	passwords := append([]string{}, q.config.Passwords...)
 	passwords = append(passwords, req.Passwords...)
+
+	logger.Debug("[Queue] Using %d password(s) for %s", len(passwords), req.Name)
 
 	queueSize, err := q.xtractr.Extract(&xtractr.Xtract{
 		Name:       req.Name,
@@ -80,12 +85,15 @@ func (q *Queue) Add(req *Request) (int, error) {
 	})
 
 	if err != nil {
+		logger.Debug("[Queue] Failed to add %s: %v", req.Name, err)
 		return 0, fmt.Errorf("queue extract: %w", err)
 	}
 
 	q.mu.Lock()
 	q.stats.Waiting++
 	q.mu.Unlock()
+
+	logger.Debug("[Queue] Successfully added %s (queue size: %d, waiting: %d)", req.Name, queueSize, q.stats.Waiting)
 
 	return queueSize, nil
 }
@@ -104,16 +112,23 @@ func (q *Queue) Stop() {
 
 func (q *Queue) handleCallback(resp *xtractr.Response, req *Request) {
 	if !resp.Done {
+		logger.Debug("[Queue] Extraction started for %s", resp.X.Name)
 		q.mu.Lock()
 		q.stats.Waiting--
 		q.stats.Extracting++
 		q.mu.Unlock()
+		logger.Debug("[Queue] Stats updated: waiting=%d, extracting=%d", q.stats.Waiting, q.stats.Extracting)
 		return
 	}
+
+	logger.Debug("[Queue] Extraction completed for %s (success=%t, archives=%d, files=%d, size=%d)",
+		resp.X.Name, resp.Error == nil, len(resp.Archives), len(resp.NewFiles), resp.Size)
 
 	q.mu.Lock()
 	q.stats.Extracting--
 	q.mu.Unlock()
+
+	logger.Debug("[Queue] Stats updated: waiting=%d, extracting=%d", q.stats.Waiting, q.stats.Extracting)
 
 	result := &Result{
 		Name:       resp.X.Name,
@@ -129,7 +144,12 @@ func (q *Queue) handleCallback(resp *xtractr.Response, req *Request) {
 		Error:      resp.Error,
 	}
 
+	if resp.Error != nil {
+		logger.Debug("[Queue] Extraction error for %s: %v", resp.X.Name, resp.Error)
+	}
+
 	if q.callback != nil {
+		logger.Debug("[Queue] Invoking callback for %s", resp.X.Name)
 		q.callback(result)
 	}
 }

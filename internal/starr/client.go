@@ -90,15 +90,18 @@ func (c *Client) Config() *starr.Config {
 
 func (c *Client) ShouldProcess(item *QueueItem) bool {
 	if !c.config.HasPath(item.Path) {
+		logger.Debug("[%s] Path check failed for %s: path=%s not in configured paths %v", c.name, item.Name, item.Path, c.config.Paths)
 		return false
 	}
 	if !c.config.HasProtocol(item.Protocol) {
+		logger.Debug("[%s] Protocol check failed for %s: protocol=%s not in configured protocols %v", c.name, item.Name, item.Protocol, c.config.Protocols)
 		return false
 	}
 	return true
 }
 
 func (c *Client) QueueExtract(item *QueueItem) error {
+	logger.Debug("[%s] Attempting to queue extraction: name=%s, path=%s", c.name, item.Name, item.Path)
 	_, err := c.queue.Add(&extract.Request{
 		Name:       item.Name,
 		Path:       item.Path,
@@ -106,6 +109,11 @@ func (c *Client) QueueExtract(item *QueueItem) error {
 		DeleteOrig: false,
 		Passwords:  []string{},
 	})
+	if err != nil {
+		logger.Debug("[%s] Queue.Add failed: %v", c.name, err)
+	} else {
+		logger.Debug("[%s] Queue.Add succeeded", c.name)
+	}
 	return err
 }
 
