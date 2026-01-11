@@ -77,10 +77,30 @@ func Load() (*Config, error) {
 			Events:   []string{"extracted", "failed"},
 			Timeout:  10 * time.Second,
 		},
+		Sonarr:  &StarrApp{},
+		Radarr:  &StarrApp{},
+		Lidarr:  &StarrApp{},
+		Readarr: &StarrApp{},
 	}
 
 	if _, err := cnfg.UnmarshalENV(cfg, ""); err != nil {
 		return nil, fmt.Errorf("unmarshal env: %w", err)
+	}
+
+	// Debug log config values after unmarshal
+	logger.Debug("[Config] After unmarshal:")
+	logger.Debug("[Config]   Timing.PollInterval: %v", cfg.Timing.PollInterval)
+	logger.Debug("[Config]   Radarr != nil: %v", cfg.Radarr != nil)
+	if cfg.Radarr != nil {
+		logger.Debug("[Config]   Radarr.URL: %s", cfg.Radarr.URL)
+		logger.Debug("[Config]   Radarr.Paths: %v (len=%d)", cfg.Radarr.Paths, len(cfg.Radarr.Paths))
+		logger.Debug("[Config]   Radarr.Protocols: %v (len=%d)", cfg.Radarr.Protocols, len(cfg.Radarr.Protocols))
+	}
+	logger.Debug("[Config]   Sonarr != nil: %v", cfg.Sonarr != nil)
+	if cfg.Sonarr != nil {
+		logger.Debug("[Config]   Sonarr.URL: %s", cfg.Sonarr.URL)
+		logger.Debug("[Config]   Sonarr.Paths: %v (len=%d)", cfg.Sonarr.Paths, len(cfg.Sonarr.Paths))
+		logger.Debug("[Config]   Sonarr.Protocols: %v (len=%d)", cfg.Sonarr.Protocols, len(cfg.Sonarr.Protocols))
 	}
 
 	if cfg.Extract.Parallel < 1 {

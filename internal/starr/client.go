@@ -58,6 +58,7 @@ func (c *Client) run(poller func(context.Context, *Client) error) {
 	defer ticker.Stop()
 
 	logger.Info("[%s] Started polling %s", c.name, c.config.URL)
+	logger.Debug("[%s] Poll interval: %v", c.name, c.timing.PollInterval)
 
 	for {
 		select {
@@ -65,6 +66,7 @@ func (c *Client) run(poller func(context.Context, *Client) error) {
 			logger.Info("[%s] Stopped", c.name)
 			return
 		case <-ticker.C:
+			logger.Debug("[%s] Ticker fired, starting poll", c.name)
 			ctx, cancel := context.WithTimeout(context.Background(), c.starrTimeout)
 			err := poller(ctx, c)
 			cancel()
@@ -75,6 +77,8 @@ func (c *Client) run(poller func(context.Context, *Client) error) {
 
 			if err != nil {
 				logger.Error("[%s] Poll error: %v", c.name, err)
+			} else {
+				logger.Debug("[%s] Poll completed successfully", c.name)
 			}
 		}
 	}
