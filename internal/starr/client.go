@@ -3,12 +3,12 @@ package starr
 import (
 	"context"
 	"fmt"
-	"log"
 	"sync"
 	"time"
 
 	"github.com/eslutz/unpackarr/internal/config"
 	"github.com/eslutz/unpackarr/internal/extract"
+	"github.com/eslutz/unpackarr/internal/logger"
 	"golift.io/starr"
 )
 
@@ -57,12 +57,12 @@ func (c *Client) run(poller func(context.Context, *Client) error) {
 	ticker := time.NewTicker(c.timing.PollInterval)
 	defer ticker.Stop()
 
-	log.Printf("[%s] Started polling %s", c.name, c.config.URL)
+	logger.Info("[%s] Started polling %s", c.name, c.config.URL)
 
 	for {
 		select {
 		case <-c.stop:
-			log.Printf("[%s] Stopped", c.name)
+			logger.Info("[%s] Stopped", c.name)
 			return
 		case <-ticker.C:
 			ctx, cancel := context.WithTimeout(context.Background(), c.starrTimeout)
@@ -74,7 +74,7 @@ func (c *Client) run(poller func(context.Context, *Client) error) {
 			c.mu.Unlock()
 
 			if err != nil {
-				log.Printf("[%s] Poll error: %v", c.name, err)
+				logger.Error("[%s] Poll error: %v", c.name, err)
 			}
 		}
 	}

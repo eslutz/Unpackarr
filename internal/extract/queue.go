@@ -2,11 +2,11 @@ package extract
 
 import (
 	"fmt"
-	"log"
 	"sync"
 	"time"
 
 	"github.com/eslutz/unpackarr/internal/config"
+	"github.com/eslutz/unpackarr/internal/logger"
 	"golift.io/xtractr"
 )
 
@@ -134,10 +134,10 @@ func (q *Queue) handleCallback(resp *xtractr.Response, req *Request) {
 	}
 }
 
-func (q *Queue) Printf(format string, v ...interface{}) {
-	log.Printf(format, v...)
+func (q *Queue) Printf(format string, v ...any) {
+	logger.Info(format, v...)
 }
 
-func (q *Queue) Debugf(format string, v ...interface{}) {
-	log.Printf("[DEBUG] "+format, v...)
+func (q *Queue) Debugf(format string, v ...any) {
+	logger.Debug(format, v...)
 }

@@ -2,10 +2,10 @@ package config
 
 import (
 	"fmt"
-	"log"
 	"strings"
 	"time"
 
+	"github.com/eslutz/unpackarr/internal/logger"
 	"golift.io/cnfg"
 )
 
@@ -100,12 +100,12 @@ func Load() (*Config, error) {
 			if _, ok := validEvents[evt]; ok {
 				filteredEvents = append(filteredEvents, evt)
 			} else {
-				log.Printf("[Config] Invalid webhook event configured: %s (ignoring)", evt)
+				logger.Warn("[Config] Invalid webhook event configured: %s (ignoring)", evt)
 			}
 		}
 		if len(filteredEvents) == 0 {
 			if len(cfg.Webhook.Events) > 0 {
-				log.Printf("[Config] All configured webhook events were invalid; falling back to defaults")
+				logger.Warn("[Config] All configured webhook events were invalid; falling back to defaults")
 			}
 			cfg.Webhook.Events = []string{"extracted", "failed"}
 		} else {

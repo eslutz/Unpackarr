@@ -3,12 +3,12 @@ package health
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"time"
 
 	"github.com/eslutz/unpackarr/internal/config"
 	"github.com/eslutz/unpackarr/internal/extract"
+	"github.com/eslutz/unpackarr/internal/logger"
 	"github.com/eslutz/unpackarr/internal/starr"
 )
 
@@ -43,7 +43,7 @@ func (s *Server) Start(port int) error {
 	mux.HandleFunc("/metrics", s.handleMetrics)
 
 	addr := fmt.Sprintf(":%d", port)
-	log.Printf("[Health] Starting server on %s", addr)
+	logger.Info("[Health] Starting server on %s", addr)
 	return http.ListenAndServe(addr, mux)
 }
 
@@ -77,7 +77,7 @@ func (s *Server) handleReady(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if !ready {
 		w.WriteHeader(http.StatusServiceUnavailable)
-		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]any{
 			"ready":   false,
 			"reasons": reasons,
 		})
@@ -90,21 +90,21 @@ func (s *Server) handleReady(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	stats := s.queue.Stats()
 
-	apps := make(map[string]interface{})
+	apps := make(map[string]any)
 	for name, client := range s.clients {
 		connected, queueSize := client.Status()
-		apps[name] = map[string]interface{}{
+		apps[name] = map[string]any{
 			"connected":   connected,
 			"queue_items": queueSize,
 		}
 	}
 
-	status := map[string]interface{}{
+	status := map[string]any{
 		"queue": map[string]int{
 			"waiting":    stats.Waiting,
 			"extracting": stats.Extracting,
 		},
-		"folder_watcher": map[string]interface{}{
+		"folder_watcher": map[string]any{
 			"enabled": s.watcherCfg.FolderWatchEnabled,
 			"paths":   s.watcherCfg.FolderWatchPaths,
 		},

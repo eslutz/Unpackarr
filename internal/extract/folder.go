@@ -1,13 +1,13 @@
 package extract
 
 import (
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/eslutz/unpackarr/internal/config"
+	"github.com/eslutz/unpackarr/internal/logger"
 	"golift.io/xtractr"
 )
 
@@ -58,12 +58,12 @@ func (w *Watcher) run() {
 	ticker := time.NewTicker(w.timing.PollInterval)
 	defer ticker.Stop()
 
-	log.Printf("[Watcher] Started watching %d paths (poll interval: %s)", len(w.config.FolderWatchPaths), w.timing.PollInterval)
+	logger.Info("[Watcher] Started watching %d paths (poll interval: %s)", len(w.config.FolderWatchPaths), w.timing.PollInterval)
 
 	for {
 		select {
 		case <-w.stop:
-			log.Println("[Watcher] Stopped")
+			logger.Info("[Watcher] Stopped")
 			return
 		case <-ticker.C:
 			w.scan()
@@ -80,7 +80,7 @@ func (w *Watcher) scan() {
 func (w *Watcher) scanPath(basePath string) {
 	entries, err := os.ReadDir(basePath)
 	if err != nil {
-		log.Printf("[Watcher] Error reading %s: %v", basePath, err)
+		logger.Error("[Watcher] Error reading %s: %v", basePath, err)
 		return
 	}
 
@@ -112,9 +112,9 @@ func (w *Watcher) queueExtraction(path, name string) {
 	})
 
 	if err != nil {
-		log.Printf("[Watcher] Error queuing %s: %v", name, err)
+		logger.Error("[Watcher] Error queuing %s: %v", name, err)
 	} else {
-		log.Printf("[Watcher] Queued: %s", name)
+		logger.Info("[Watcher] Queued: %s", name)
 	}
 }
 
@@ -191,12 +191,12 @@ func (w *Watcher) runCleanup() {
 	ticker := time.NewTicker(w.cleanupInterval)
 	defer ticker.Stop()
 
-	log.Printf("[Watcher] Started marker cleanup with interval %s", w.cleanupInterval)
+	logger.Info("[Watcher] Started marker cleanup with interval %s", w.cleanupInterval)
 
 	for {
 		select {
 		case <-w.cleanupStop:
-			log.Println("[Watcher] Cleanup stopped")
+			logger.Info("[Watcher] Cleanup stopped")
 			return
 		case <-ticker.C:
 			w.cleanOrphanedMarkers()
@@ -230,9 +230,9 @@ func (w *Watcher) cleanOrphanedMarkers() {
 			if _, err := os.Stat(archivePath); os.IsNotExist(err) {
 				// Archive doesn't exist, remove the marker
 				if err := os.Remove(path); err != nil {
-					log.Printf("[Watcher] Error removing orphaned marker %s: %v", path, err)
+					logger.Error("[Watcher] Error removing orphaned marker %s: %v", path, err)
 				} else {
-					log.Printf("[Watcher] Removed orphaned marker: %s", name)
+					logger.Info("[Watcher] Removed orphaned marker: %s", name)
 				}
 			}
 
@@ -240,7 +240,7 @@ func (w *Watcher) cleanOrphanedMarkers() {
 		})
 
 		if err != nil {
-			log.Printf("[Watcher] Error cleaning markers in %s: %v", basePath, err)
+			logger.Error("[Watcher] Error cleaning markers in %s: %v", basePath, err)
 		}
 	}
 }

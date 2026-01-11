@@ -2,11 +2,11 @@ package starr
 
 import (
 	"context"
-	"log"
 	"time"
 
 	"github.com/eslutz/unpackarr/internal/config"
 	"github.com/eslutz/unpackarr/internal/extract"
+	"github.com/eslutz/unpackarr/internal/logger"
 	"golift.io/starr/readarr"
 )
 
@@ -32,7 +32,9 @@ func (r *ReadarrClient) poll(ctx context.Context, c *Client) error {
 	}
 
 	c.SetQueueSize(queue.TotalRecords)
+	logger.Debug("[Readarr] Polled queue: %d total records", queue.TotalRecords)
 
+	matched := 0
 	for _, record := range queue.Records {
 		item := &QueueItem{
 			ID:         record.ID,
@@ -45,18 +47,23 @@ func (r *ReadarrClient) poll(ctx context.Context, c *Client) error {
 		}
 
 		if !c.ShouldProcess(item) {
+			logger.Debug("[Readarr] Filtered out %s (path=%s, protocol=%s)", item.Name, item.Path, item.Protocol)
 			continue
 		}
 
 		// Queue extraction when download is completed and waiting for import (archived files)
 		if record.Status == "completed" && record.TrackedDownloadState == "importPending" {
+			matched++
 			if err := c.QueueExtract(item); err != nil {
-				log.Printf("[Readarr] Queue extract error for %s: %v", item.Name, err)
+				logger.Error("[Readarr] Queue extract error for %s: %v", item.Name, err)
 			} else {
-				log.Printf("[Readarr] Queued extraction: %s", item.Name)
+				logger.Info("[Readarr] Queued extraction: %s", item.Name)
 			}
+		} else {
+			logger.Debug("[Readarr] Skipped %s (status=%s, state=%s)", record.Title, record.Status, record.TrackedDownloadState)
 		}
 	}
 
+	logger.Debug("[Readarr] Poll complete: matched %d items for extraction", matched)
 	return nil
 }

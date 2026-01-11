@@ -93,7 +93,7 @@ func TestHandleStatus(t *testing.T) {
 		t.Errorf("handleStatus() status = %d, want %d", w.Code, http.StatusOK)
 	}
 
-	var response map[string]interface{}
+	var response map[string]any
 	_ = json.NewDecoder(w.Body).Decode(&response)
 
 	if response["queue"] == nil {
@@ -215,10 +215,10 @@ func TestHandleStatusWithClients(t *testing.T) {
 		t.Errorf("handleStatus() status = %d, want %d", w.Code, http.StatusOK)
 	}
 
-	var response map[string]interface{}
+	var response map[string]any
 	_ = json.NewDecoder(w.Body).Decode(&response)
 
-	apps := response["apps"].(map[string]interface{})
+	apps := response["apps"].(map[string]any)
 	if len(apps) != 1 {
 		t.Errorf("handleStatus() apps count = %d, want 1", len(apps))
 	}

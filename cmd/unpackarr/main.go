@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -10,33 +9,34 @@ import (
 	"github.com/eslutz/unpackarr/internal/config"
 	"github.com/eslutz/unpackarr/internal/extract"
 	"github.com/eslutz/unpackarr/internal/health"
+	"github.com/eslutz/unpackarr/internal/logger"
 	"github.com/eslutz/unpackarr/internal/notify"
 	"github.com/eslutz/unpackarr/internal/starr"
 	"github.com/eslutz/unpackarr/pkg/version"
 )
 
 func main() {
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
-	log.Println(version.String())
+	logger.Info(version.String())
 
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalf("Failed to load config: %v", err)
+		logger.Error("Failed to load config: %v", err)
+		os.Exit(1)
 	}
 
-	setLogLevel(cfg.LogLevel)
+	logger.SetLevel(cfg.LogLevel)
 
 	metrics := health.NewMetrics()
 	webhook := notify.NewWebhook(&cfg.Webhook)
 
 	queue := extract.NewQueue(&cfg.Extract, func(result *extract.Result) {
-		log.Printf("[Extract] Completed: %s (source: %s, success: %t, duration: %s)",
+		logger.Info("[Extract] Completed: %s (source: %s, success: %t, duration: %s)",
 			result.Name, result.Source, result.Success, result.Elapsed)
 
 		// Write marker file when not deleting originals to prevent re-extraction
 		if result.Success && !result.DeleteOrig {
 			if err := extract.WriteMarkerForPath(result.Path); err != nil {
-				log.Printf("[Extract] Warning: failed to write marker for %s: %v", result.Name, err)
+				logger.Warn("[Extract] Warning: failed to write marker for %s: %v", result.Name, err)
 			}
 		}
 
@@ -47,7 +47,7 @@ func main() {
 				// Recover from panics to prevent crashing the application
 				defer func() {
 					if r := recover(); r != nil {
-						log.Printf("[Webhook] Panic recovered: %v", r)
+						logger.Error("[Webhook] Panic recovered: %v", r)
 					}
 				}()
 
@@ -74,14 +74,15 @@ func main() {
 
 	clients := initStarrClients(cfg, queue, healthServer)
 
-	log.Printf("Started %d starr clients", len(clients))
+	logger.Info("Started %d starr clients", len(clients))
 	if cfg.Watch.FolderWatchEnabled {
-		log.Printf("Folder watcher enabled for %d paths", len(cfg.Watch.FolderWatchPaths))
+		logger.Info("Folder watcher enabled for %d paths", len(cfg.Watch.FolderWatchPaths))
 	}
 
 	go func() {
 		if err := healthServer.Start(cfg.HealthPort); err != nil {
-			log.Fatalf("Health server error: %v", err)
+			logger.Error("Health server error: %v", err)
+			os.Exit(1)
 		}
 	}()
 
@@ -89,7 +90,7 @@ func main() {
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 	<-sigChan
 
-	log.Println("Shutting down...")
+	logger.Info("Shutting down...")
 
 	for _, client := range clients {
 		client.Stop()
@@ -97,7 +98,7 @@ func main() {
 	watcher.Stop()
 	queue.Stop()
 
-	log.Println("Shutdown complete")
+	logger.Info("Shutdown complete")
 }
 
 func initStarrClients(cfg *config.Config, queue *extract.Queue, server *health.Server) []*starr.Client {
@@ -130,13 +131,4 @@ func initStarrClients(cfg *config.Config, queue *extract.Queue, server *health.S
 	return clients
 }
 
-func setLogLevel(level string) {
-	switch level {
-	case "DEBUG":
-		log.SetFlags(log.LstdFlags | log.Lshortfile)
-	case "INFO", "WARN", "ERROR":
-		log.SetFlags(log.LstdFlags)
-	default:
-		log.SetFlags(log.LstdFlags)
-	}
-}
+

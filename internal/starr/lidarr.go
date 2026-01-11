@@ -2,11 +2,11 @@ package starr
 
 import (
 	"context"
-	"log"
 	"time"
 
 	"github.com/eslutz/unpackarr/internal/config"
 	"github.com/eslutz/unpackarr/internal/extract"
+	"github.com/eslutz/unpackarr/internal/logger"
 	"golift.io/starr/lidarr"
 )
 
@@ -32,7 +32,9 @@ func (l *LidarrClient) poll(ctx context.Context, c *Client) error {
 	}
 
 	c.SetQueueSize(queue.TotalRecords)
+	logger.Debug("[Lidarr] Polled queue: %d total records", queue.TotalRecords)
 
+	matched := 0
 	for _, record := range queue.Records {
 		item := &QueueItem{
 			ID:         record.ID,
@@ -45,17 +47,22 @@ func (l *LidarrClient) poll(ctx context.Context, c *Client) error {
 		}
 
 		if !c.ShouldProcess(item) {
+			logger.Debug("[Lidarr] Filtered out %s (path=%s, protocol=%s)", item.Name, item.Path, item.Protocol)
 			continue
 		}
 
 		if record.Status == "completed" {
+			matched++
 			if err := c.QueueExtract(item); err != nil {
-				log.Printf("[Lidarr] Queue extract error for %s: %v", item.Name, err)
+				logger.Error("[Lidarr] Queue extract error for %s: %v", item.Name, err)
 			} else {
-				log.Printf("[Lidarr] Queued extraction: %s", item.Name)
+				logger.Info("[Lidarr] Queued extraction: %s", item.Name)
 			}
+		} else {
+			logger.Debug("[Lidarr] Skipped %s (status=%s)", record.Title, record.Status)
 		}
 	}
 
+	logger.Debug("[Lidarr] Poll complete: matched %d items for extraction", matched)
 	return nil
 }

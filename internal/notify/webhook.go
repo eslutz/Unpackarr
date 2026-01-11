@@ -6,12 +6,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"time"
 
 	"github.com/eslutz/unpackarr/internal/config"
 	"github.com/eslutz/unpackarr/internal/extract"
+	"github.com/eslutz/unpackarr/internal/logger"
 )
 
 type Webhook struct {
@@ -44,7 +44,7 @@ func (w *Webhook) Notify(result *extract.Result) {
 
 	payload := w.buildPayload(result, event)
 	if err := w.send(payload); err != nil {
-		log.Printf("[Webhook] Send error: %v", err)
+		logger.Error("[Webhook] Send error: %v", err)
 	}
 }
 
@@ -77,7 +77,7 @@ func (w *Webhook) buildPayload(result *extract.Result, event string) []byte {
 	}
 }
 
-func (w *Webhook) discordPayload(result *extract.Result, event string) []byte {
+func (w *Webhook) discordPayload(result *extract.Result, _ string) []byte {
 	color := 3066993
 	if !result.Success {
 		color = 15158332
@@ -88,14 +88,14 @@ func (w *Webhook) discordPayload(result *extract.Result, event string) []byte {
 		status = "❌ Failed"
 	}
 
-	payload := map[string]interface{}{
-		"embeds": []map[string]interface{}{
+	payload := map[string]any{
+		"embeds": []map[string]any{
 			{
 				"title":       fmt.Sprintf("%s: %s", status, result.Name),
 				"description": fmt.Sprintf("Source: %s\nDuration: %s", result.Source, result.Elapsed.Round(time.Second)),
 				"color":       color,
 				"timestamp":   result.Started.Format(time.RFC3339),
-				"fields": []map[string]interface{}{
+				"fields": []map[string]any{
 					{"name": "Archives", "value": fmt.Sprint(result.Archives), "inline": true},
 					{"name": "Files", "value": fmt.Sprint(result.Files), "inline": true},
 					{"name": "Size", "value": fmt.Sprintf("%.1f MiB", float64(result.Size)/(1024*1024)), "inline": true},
@@ -105,9 +105,9 @@ func (w *Webhook) discordPayload(result *extract.Result, event string) []byte {
 	}
 
 	if !result.Success && result.Error != nil {
-		payload["embeds"].([]map[string]interface{})[0]["fields"] = append(
-			payload["embeds"].([]map[string]interface{})[0]["fields"].([]map[string]interface{}),
-			map[string]interface{}{"name": "Error", "value": result.Error.Error()},
+		payload["embeds"].([]map[string]any)[0]["fields"] = append(
+			payload["embeds"].([]map[string]any)[0]["fields"].([]map[string]any),
+			map[string]any{"name": "Error", "value": result.Error.Error()},
 		)
 	}
 
@@ -115,7 +115,7 @@ func (w *Webhook) discordPayload(result *extract.Result, event string) []byte {
 	return data
 }
 
-func (w *Webhook) slackPayload(result *extract.Result, event string) []byte {
+func (w *Webhook) slackPayload(result *extract.Result, _ string) []byte {
 	color := "good"
 	if !result.Success {
 		color = "danger"
@@ -134,8 +134,8 @@ func (w *Webhook) slackPayload(result *extract.Result, event string) []byte {
 		text += fmt.Sprintf("\n*Error:* %s", result.Error.Error())
 	}
 
-	payload := map[string]interface{}{
-		"attachments": []map[string]interface{}{
+	payload := map[string]any{
+		"attachments": []map[string]any{
 			{
 				"color": color,
 				"text":  text,
@@ -148,7 +148,7 @@ func (w *Webhook) slackPayload(result *extract.Result, event string) []byte {
 	return data
 }
 
-func (w *Webhook) gotifyPayload(result *extract.Result, event string) []byte {
+func (w *Webhook) gotifyPayload(result *extract.Result, _ string) []byte {
 	priority := 5
 	if !result.Success {
 		priority = 8
@@ -167,7 +167,7 @@ func (w *Webhook) gotifyPayload(result *extract.Result, event string) []byte {
 		message += fmt.Sprintf("\nError: %s", result.Error.Error())
 	}
 
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"title":    fmt.Sprintf("%s: %s", status, result.Name),
 		"message":  message,
 		"priority": priority,
@@ -178,7 +178,7 @@ func (w *Webhook) gotifyPayload(result *extract.Result, event string) []byte {
 }
 
 func (w *Webhook) jsonPayload(result *extract.Result, event string) []byte {
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"event":    event,
 		"name":     result.Name,
 		"source":   result.Source,
