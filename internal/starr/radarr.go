@@ -33,7 +33,7 @@ func (r *RadarrClient) poll(ctx context.Context, c *Client) error {
 
 	c.SetQueueSize(queue.TotalRecords)
 	logger.Debug("[Radarr] Polled queue: %d total records", queue.TotalRecords)
-	logger.Debug("[Radarr] Configured paths: %v, protocols: %v", c.config.Paths, c.config.Protocols)
+	logger.Debug("[Radarr] Configured paths: %v, protocols: %v", c.config.GetPaths(), c.config.GetProtocols())
 
 	matched := 0
 	for _, record := range queue.Records {

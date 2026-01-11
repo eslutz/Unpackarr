@@ -34,7 +34,7 @@ docker run -d \
 
 ## Configuration
 
-All configuration is done via environment variables.
+All configuration is done via environment variables. For a comprehensive reference including cnfg naming conventions and Docker Compose examples, see **[docs/environment-variables.md](docs/environment-variables.md)**.
 
 ### Core Settings
 
@@ -51,16 +51,19 @@ Key settings (see [docs/.env.example](docs/.env.example) for all options):
 
 Duration values support: `s` (seconds), `m` (minutes), `h` (hours). Examples: `30s`, `5m`, `2h`, `90m`, `1h30m`
 
+**Important**: Timing variables require the `TIMING_` prefix due to cnfg struct hierarchy. See [docs/environment-variables.md](docs/environment-variables.md#notes-on-cnfg-variable-naming) for details.
+
 | Variable | Default | Description |
 | --- | --- | --- |
-| `POLL_INTERVAL` | `5m` | How often to check for new work (applies to both folder watching and *arr app queue polling) |
-| `MARKER_CLEANUP_INTERVAL` | `1h` | How often to clean up orphaned marker files |
-
-### Folder Watching
-
-Standalone mode for apps not supported by `golift.io/starr` (e.g., Whisparr). See [docs/.env.example](docs/.env.example) for all options.
+| `TIMING_POLL_INTERVAL` | `5m` | How often to check for new work (applies to both folder watching and *arr app queue polling) |
+| `TIMING_STARR_TIMEOUT` | `30s` | API request timeout for *arr applications |
+| `WATCH_MARKER_CLEANUP_INTERVAL` | `1h` | How often to clean up orphaned marker files |
+environment-variables.md](docs/environment-variables.md#folder-watcher-settings) for all options.
 
 | Variable | Default | Description |
+| --- | --- | --- |
+| `WATCH_FOLDER_WATCH_ENABLED` | `false` | Enable folder watching |
+| `WATCH_ariable | Default | Description |
 | --- | --- | --- |
 | `FOLDER_WATCH_ENABLED` | `false` | Enable folder watching |
 | `FOLDER_WATCH_PATHS` | `/downloads` | Comma-separated watch paths |
@@ -75,7 +78,7 @@ When `EXTRACT_DELETE_ORIG` is set to `false`, Unpackarr uses hidden marker files
 - **Multi-part archives**: One marker per main archive file (e.g., only `.movie.rar.unpackarr` for `movie.rar`, `movie.r00`, etc.)
 
 **Note**: When `EXTRACT_DELETE_ORIG=true`, marker files are not created since archives are deleted after extraction.
-
+environment-variables.md](docs/environment-variables.md#webhook-settings
 ### Webhook Notifications
 
 Optional notifications to Discord, Slack, Gotify, or custom JSON endpoints. See [docs/.env.example](docs/.env.example) for all options.
@@ -133,13 +136,14 @@ Optional notifications to Discord, Slack, Gotify, or custom JSON endpoints. See 
 
 ### *arr Apps (Sonarr, Radarr, Lidarr, Readarr)
 
-These apps are supported via the [golift.io/starr](https://github.com/golift/starr) package. Each app uses the same pattern. Replace `{APP}` with `SONARR`, `RADARR`, `LIDARR`, or `READARR`. See [docs/.env.example](docs/.env.example) for detailed configuration.
+These apps are supported via the [golift.io/starr](https://github.com/golift/starr) package. Each app uses the same pattern. Replace `{APP}` with `SONARR`, `RADARR`, `LIDARR`, or `READARR`. See [docs/environment-variables.md](docs/environment-variables.md) for detailed configuration.
 
 | Variable | Default | Description |
 | --- | --- | --- |
 | `{APP}_URL` | | Base URL (e.g., <http://sonarr:8989>) |
 | `{APP}_API_KEY` | | API key from app settings |
-| `{APP}_PATHS` | `/downloads` | Comma-separated paths to monitor |
+| `{APP}_PATHS` | | Comma-separated path prefixes to monitor (empty = all paths) |
+| `{APP}_PROTOCOLS` | | Comma-separated protocols: `torrent`, `usenet` (empty = all protocols) |
 
 **Note**: Other *arr applications (e.g., Whisparr) not listed above can use the [Folder Watching](#folder-watching) feature for automatic extraction.
 

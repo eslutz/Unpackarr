@@ -33,7 +33,7 @@ func (s *SonarrClient) poll(ctx context.Context, c *Client) error {
 
 	c.SetQueueSize(queue.TotalRecords)
 	logger.Debug("[Sonarr] Polled queue: %d total records", queue.TotalRecords)
-	logger.Debug("[Sonarr] Configured paths: %v, protocols: %v", c.config.Paths, c.config.Protocols)
+	logger.Debug("[Sonarr] Configured paths: %v, protocols: %v", c.config.GetPaths(), c.config.GetProtocols())
 
 	matched := 0
 	for _, record := range queue.Records {

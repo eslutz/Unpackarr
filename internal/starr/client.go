@@ -60,6 +60,22 @@ func (c *Client) run(poller func(context.Context, *Client) error) {
 	logger.Info("[%s] Started polling %s", c.name, c.config.URL)
 	logger.Debug("[%s] Poll interval: %v", c.name, c.timing.PollInterval)
 
+	// Do an immediate poll on startup instead of waiting for first tick
+	logger.Debug("[%s] Running initial poll", c.name)
+	ctx, cancel := context.WithTimeout(context.Background(), c.starrTimeout)
+	err := poller(ctx, c)
+	cancel()
+
+	c.mu.Lock()
+	c.connected = (err == nil)
+	c.mu.Unlock()
+
+	if err != nil {
+		logger.Error("[%s] Initial poll error: %v", c.name, err)
+	} else {
+		logger.Debug("[%s] Initial poll completed successfully", c.name)
+	}
+
 	for {
 		select {
 		case <-c.stop:

@@ -33,7 +33,7 @@ func (r *ReadarrClient) poll(ctx context.Context, c *Client) error {
 
 	c.SetQueueSize(queue.TotalRecords)
 	logger.Debug("[Readarr] Polled queue: %d total records", queue.TotalRecords)
-	logger.Debug("[Readarr] Configured paths: %v, protocols: %v", c.config.Paths, c.config.Protocols)
+	logger.Debug("[Readarr] Configured paths: %v, protocols: %v", c.config.GetPaths(), c.config.GetProtocols())
 
 	matched := 0
 	for _, record := range queue.Records {

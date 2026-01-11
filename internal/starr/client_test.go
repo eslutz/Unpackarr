@@ -13,8 +13,8 @@ func TestNewClient(t *testing.T) {
 	cfg := &config.StarrApp{
 		URL:       "http://test:8989",
 		APIKey:    "test-key",
-		Paths:     []string{"/downloads"},
-		Protocols: []string{"torrent"},
+		Paths:     "/downloads",
+		Protocols: "torrent",
 	}
 
 	extractCfg := &config.ExtractConfig{Parallel: 1}
@@ -59,8 +59,8 @@ func TestShouldProcess(t *testing.T) {
 	cfg := &config.StarrApp{
 		URL:       "http://test:8989",
 		APIKey:    "test-key",
-		Paths:     []string{"/downloads"},
-		Protocols: []string{"torrent"},
+		Paths:     "/downloads",
+		Protocols: "torrent",
 	}
 
 	extractCfg := &config.ExtractConfig{Parallel: 1}

@@ -78,7 +78,7 @@ func TestEnabledApps(t *testing.T) {
 
 func TestStarrAppHasPath(t *testing.T) {
 	app := &StarrApp{
-		Paths: []string{"/downloads", "/media"},
+		Paths: "/downloads,/media",
 	}
 
 	if !app.HasPath("/downloads/movie") {
@@ -91,7 +91,7 @@ func TestStarrAppHasPath(t *testing.T) {
 
 func TestStarrAppHasProtocol(t *testing.T) {
 	app := &StarrApp{
-		Protocols: []string{"torrent"},
+		Protocols: "torrent",
 	}
 
 	if !app.HasProtocol("torrent") {
@@ -102,11 +102,137 @@ func TestStarrAppHasProtocol(t *testing.T) {
 	}
 
 	appAll := &StarrApp{
-		Protocols: []string{},
+		Protocols: "",
 	}
 	if !appAll.HasProtocol("anything") {
 		t.Error("HasProtocol() with empty protocols should return true for any protocol")
 	}
+}
+
+func TestStarrAppEnvironmentLoading(t *testing.T) {
+	os.Clearenv()
+
+	// Test Radarr configuration
+	if err := os.Setenv("RADARR_URL", "http://radarr:7878"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Setenv("RADARR_API_KEY", "test-radarr-key"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Setenv("RADARR_PATHS", "/media,/downloads"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Setenv("RADARR_PROTOCOLS", "torrent,usenet"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Test Sonarr configuration
+	if err := os.Setenv("SONARR_URL", "http://sonarr:8989"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Setenv("SONARR_API_KEY", "test-sonarr-key"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Setenv("SONARR_PATHS", "/tv"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Setenv("SONARR_PROTOCOLS", "torrent"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Test Lidarr configuration
+	if err := os.Setenv("LIDARR_URL", "http://lidarr:8686"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Setenv("LIDARR_API_KEY", "test-lidarr-key"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Setenv("LIDARR_PATHS", "/music"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Test Readarr configuration
+	if err := os.Setenv("READARR_URL", "http://readarr:8787"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Setenv("READARR_API_KEY", "test-readarr-key"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Setenv("READARR_PROTOCOLS", "usenet"); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	// Verify Radarr
+	if cfg.Radarr == nil {
+		t.Fatal("Radarr should not be nil")
+	}
+	if cfg.Radarr.URL != "http://radarr:7878" {
+		t.Errorf("Radarr.URL = %s, want http://radarr:7878", cfg.Radarr.URL)
+	}
+	if cfg.Radarr.APIKey != "test-radarr-key" {
+		t.Errorf("Radarr.APIKey = %s, want test-radarr-key", cfg.Radarr.APIKey)
+	}
+	if cfg.Radarr.Paths != "/media,/downloads" {
+		t.Errorf("Radarr.Paths = %s, want /media,/downloads", cfg.Radarr.Paths)
+	}
+	if cfg.Radarr.Protocols != "torrent,usenet" {
+		t.Errorf("Radarr.Protocols = %s, want torrent,usenet", cfg.Radarr.Protocols)
+	}
+	radarrPaths := cfg.Radarr.GetPaths()
+	if len(radarrPaths) != 2 || radarrPaths[0] != "/media" || radarrPaths[1] != "/downloads" {
+		t.Errorf("Radarr.GetPaths() = %v, want [/media /downloads]", radarrPaths)
+	}
+	radarrProtocols := cfg.Radarr.GetProtocols()
+	if len(radarrProtocols) != 2 || radarrProtocols[0] != "torrent" || radarrProtocols[1] != "usenet" {
+		t.Errorf("Radarr.GetProtocols() = %v, want [torrent usenet]", radarrProtocols)
+	}
+
+	// Verify Sonarr
+	if cfg.Sonarr == nil {
+		t.Fatal("Sonarr should not be nil")
+	}
+	if cfg.Sonarr.URL != "http://sonarr:8989" {
+		t.Errorf("Sonarr.URL = %s, want http://sonarr:8989", cfg.Sonarr.URL)
+	}
+	if cfg.Sonarr.APIKey != "test-sonarr-key" {
+		t.Errorf("Sonarr.APIKey = %s, want test-sonarr-key", cfg.Sonarr.APIKey)
+	}
+	if cfg.Sonarr.Paths != "/tv" {
+		t.Errorf("Sonarr.Paths = %s, want /tv", cfg.Sonarr.Paths)
+	}
+	sonarrPaths := cfg.Sonarr.GetPaths()
+	if len(sonarrPaths) != 1 || sonarrPaths[0] != "/tv" {
+		t.Errorf("Sonarr.GetPaths() = %v, want [/tv]", sonarrPaths)
+	}
+
+	// Verify Lidarr
+	if cfg.Lidarr == nil {
+		t.Fatal("Lidarr should not be nil")
+	}
+	if cfg.Lidarr.URL != "http://lidarr:8686" {
+		t.Errorf("Lidarr.URL = %s, want http://lidarr:8686", cfg.Lidarr.URL)
+	}
+	if cfg.Lidarr.Paths != "/music" {
+		t.Errorf("Lidarr.Paths = %s, want /music", cfg.Lidarr.Paths)
+	}
+
+	// Verify Readarr
+	if cfg.Readarr == nil {
+		t.Fatal("Readarr should not be nil")
+	}
+	if cfg.Readarr.URL != "http://readarr:8787" {
+		t.Errorf("Readarr.URL = %s, want http://readarr:8787", cfg.Readarr.URL)
+	}
+	if cfg.Readarr.Protocols != "usenet" {
+		t.Errorf("Readarr.Protocols = %s, want usenet", cfg.Readarr.Protocols)
+	}
+
+	os.Clearenv()
 }
 
 func TestMinimumParallel(t *testing.T) {

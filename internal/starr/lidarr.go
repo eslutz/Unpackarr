@@ -33,7 +33,7 @@ func (l *LidarrClient) poll(ctx context.Context, c *Client) error {
 
 	c.SetQueueSize(queue.TotalRecords)
 	logger.Debug("[Lidarr] Polled queue: %d total records", queue.TotalRecords)
-	logger.Debug("[Lidarr] Configured paths: %v, protocols: %v", c.config.Paths, c.config.Protocols)
+	logger.Debug("[Lidarr] Configured paths: %v, protocols: %v", c.config.GetPaths(), c.config.GetProtocols())
 
 	matched := 0
 	for _, record := range queue.Records {

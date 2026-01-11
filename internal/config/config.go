@@ -49,10 +49,10 @@ type WebhookConfig struct {
 }
 
 type StarrApp struct {
-	URL       string   `xml:"url"`
-	APIKey    string   `xml:"api_key"`
-	Paths     []string `xml:"paths"`
-	Protocols []string `xml:"protocols"`
+	URL       string `xml:"url"`
+	APIKey    string `xml:"api_key"`
+	Paths     string `xml:"paths"`      // Comma-separated path prefixes
+	Protocols string `xml:"protocols"`  // Comma-separated protocols
 }
 
 func Load() (*Config, error) {
@@ -93,14 +93,26 @@ func Load() (*Config, error) {
 	logger.Debug("[Config]   Radarr != nil: %v", cfg.Radarr != nil)
 	if cfg.Radarr != nil {
 		logger.Debug("[Config]   Radarr.URL: %s", cfg.Radarr.URL)
-		logger.Debug("[Config]   Radarr.Paths: %v (len=%d)", cfg.Radarr.Paths, len(cfg.Radarr.Paths))
-		logger.Debug("[Config]   Radarr.Protocols: %v (len=%d)", cfg.Radarr.Protocols, len(cfg.Radarr.Protocols))
+		logger.Debug("[Config]   Radarr.Paths: %s → %v", cfg.Radarr.Paths, cfg.Radarr.GetPaths())
+		logger.Debug("[Config]   Radarr.Protocols: %s → %v", cfg.Radarr.Protocols, cfg.Radarr.GetProtocols())
 	}
 	logger.Debug("[Config]   Sonarr != nil: %v", cfg.Sonarr != nil)
 	if cfg.Sonarr != nil {
 		logger.Debug("[Config]   Sonarr.URL: %s", cfg.Sonarr.URL)
-		logger.Debug("[Config]   Sonarr.Paths: %v (len=%d)", cfg.Sonarr.Paths, len(cfg.Sonarr.Paths))
-		logger.Debug("[Config]   Sonarr.Protocols: %v (len=%d)", cfg.Sonarr.Protocols, len(cfg.Sonarr.Protocols))
+		logger.Debug("[Config]   Sonarr.Paths: %s → %v", cfg.Sonarr.Paths, cfg.Sonarr.GetPaths())
+		logger.Debug("[Config]   Sonarr.Protocols: %s → %v", cfg.Sonarr.Protocols, cfg.Sonarr.GetProtocols())
+	}
+	logger.Debug("[Config]   Lidarr != nil: %v", cfg.Lidarr != nil)
+	if cfg.Lidarr != nil {
+		logger.Debug("[Config]   Lidarr.URL: %s", cfg.Lidarr.URL)
+		logger.Debug("[Config]   Lidarr.Paths: %s → %v", cfg.Lidarr.Paths, cfg.Lidarr.GetPaths())
+		logger.Debug("[Config]   Lidarr.Protocols: %s → %v", cfg.Lidarr.Protocols, cfg.Lidarr.GetProtocols())
+	}
+	logger.Debug("[Config]   Readarr != nil: %v", cfg.Readarr != nil)
+	if cfg.Readarr != nil {
+		logger.Debug("[Config]   Readarr.URL: %s", cfg.Readarr.URL)
+		logger.Debug("[Config]   Readarr.Paths: %s → %v", cfg.Readarr.Paths, cfg.Readarr.GetPaths())
+		logger.Debug("[Config]   Readarr.Protocols: %s → %v", cfg.Readarr.Protocols, cfg.Readarr.GetProtocols())
 	}
 
 	if cfg.Extract.Parallel < 1 {
@@ -157,8 +169,13 @@ func (s *StarrApp) HasPath(path string) bool {
 	if path == "" {
 		return false
 	}
-	for _, p := range s.Paths {
-		if strings.HasPrefix(path, p) {
+	if s.Paths == "" {
+		return true // Empty paths means process all
+	}
+	paths := strings.Split(s.Paths, ",")
+	for _, p := range paths {
+		p = strings.TrimSpace(p)
+		if p != "" && strings.HasPrefix(path, p) {
 			return true
 		}
 	}
@@ -166,13 +183,46 @@ func (s *StarrApp) HasPath(path string) bool {
 }
 
 func (s *StarrApp) HasProtocol(protocol string) bool {
-	if len(s.Protocols) == 0 {
-		return true
+	if s.Protocols == "" {
+		return true // Empty protocols means process all
 	}
-	for _, p := range s.Protocols {
-		if strings.EqualFold(p, protocol) {
+	protocols := strings.Split(s.Protocols, ",")
+	for _, p := range protocols {
+		if strings.EqualFold(strings.TrimSpace(p), protocol) {
 			return true
 		}
 	}
 	return false
+}
+
+// GetPaths returns the configured paths as a slice
+func (s *StarrApp) GetPaths() []string {
+	if s.Paths == "" {
+		return []string{}
+	}
+	paths := strings.Split(s.Paths, ",")
+	result := make([]string, 0, len(paths))
+	for _, p := range paths {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			result = append(result, p)
+		}
+	}
+	return result
+}
+
+// GetProtocols returns the configured protocols as a slice
+func (s *StarrApp) GetProtocols() []string {
+	if s.Protocols == "" {
+		return []string{}
+	}
+	protocols := strings.Split(s.Protocols, ",")
+	result := make([]string, 0, len(protocols))
+	for _, p := range protocols {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			result = append(result, p)
+		}
+	}
+	return result
 }
