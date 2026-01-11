@@ -69,7 +69,7 @@ func Load() (*Config, error) {
 			MarkerCleanup:      1 * time.Hour,
 		},
 		Timing: TimingConfig{
-			PollInterval: 2 * time.Minute,
+			PollInterval: 5 * time.Minute,
 			StarrTimeout: 30 * time.Second,
 		},
 		Webhook: WebhookConfig{

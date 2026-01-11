@@ -12,7 +12,7 @@ services:
       - EXTRACT_PASSWORDS=
 
       # Timing
-      - POLL_INTERVAL=2m
+      - POLL_INTERVAL=5m
       - MARKER_CLEANUP_INTERVAL=1h
 
       # Folder watching

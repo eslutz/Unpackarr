@@ -53,7 +53,7 @@ Duration values support: `s` (seconds), `m` (minutes), `h` (hours). Examples: `3
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `POLL_INTERVAL` | `2m` | How often to check for new work (applies to both folder watching and *arr app queue polling) |
+| `POLL_INTERVAL` | `5m` | How often to check for new work (applies to both folder watching and *arr app queue polling) |
 | `MARKER_CLEANUP_INTERVAL` | `1h` | How often to clean up orphaned marker files |
 
 ### Folder Watching

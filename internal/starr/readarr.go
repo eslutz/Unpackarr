@@ -48,7 +48,8 @@ func (r *ReadarrClient) poll(ctx context.Context, c *Client) error {
 			continue
 		}
 
-		if record.Status == "completed" {
+		// Queue extraction when download is completed and waiting for import (archived files)
+		if record.Status == "completed" && record.TrackedDownloadState == "importPending" {
 			if err := c.QueueExtract(item); err != nil {
 				log.Printf("[Readarr] Queue extract error for %s: %v", item.Name, err)
 			} else {

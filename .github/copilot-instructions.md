@@ -5,7 +5,7 @@
 Unpackarr is a **stateless, event-driven extraction service** for the \*arr stack (Sonarr, Radarr, Lidarr, Readarr). Key architectural principles:
 
 - **12-factor**: All configuration via environment variables using `golift.io/cnfg`, no config files
-- **Polling-based**: Starr clients poll app queues at configurable intervals (default: 2m)
+- **Polling-based**: Starr clients poll app queues at configurable intervals (default: 5m)
 - **Queue-driven extraction**: Centralizes extraction through `internal/extract/Queue` using `golift.io/xtractr`
 - **Callback pattern**: Extraction results flow back through callbacks to metrics and webhooks
 

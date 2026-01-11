@@ -135,8 +135,8 @@ func TestDefaultTiming(t *testing.T) {
 		t.Fatalf("Load() error = %v", err)
 	}
 
-	if cfg.Timing.PollInterval != 2*time.Minute {
-		t.Errorf("PollInterval = %v, want 2m", cfg.Timing.PollInterval)
+	if cfg.Timing.PollInterval != 5*time.Minute {
+		t.Errorf("PollInterval = %v, want 5m", cfg.Timing.PollInterval)
 	}
 }
 func TestWebhookEventValidation(t *testing.T) {
