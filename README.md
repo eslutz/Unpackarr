@@ -79,6 +79,7 @@ When `EXTRACT_DELETE_ORIG` is set to `false`, Unpackarr uses hidden marker files
 
 **Note**: When `EXTRACT_DELETE_ORIG=true`, marker files are not created since archives are deleted after extraction.
 environment-variables.md](docs/environment-variables.md#webhook-settings
+
 ### Webhook Notifications
 
 Optional notifications to Discord, Slack, Gotify, or custom JSON endpoints. See [docs/.env.example](docs/.env.example) for all options.
