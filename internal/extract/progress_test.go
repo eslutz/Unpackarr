@@ -1,153 +1,144 @@
 package extract
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/eslutz/unpackarr/internal/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestProgressTracker_BasicFlow(t *testing.T) {
-	t.Parallel()
-
-	cfg := ProgressConfig{
-		ReportInterval: 100 * time.Millisecond,
-		StallTimeout:   500 * time.Millisecond,
-	}
-
-	tracker := NewProgressTracker("test-archive", "/path/to/archive", cfg)
-	require.NotNil(t, tracker)
-
-	// Start tracking
-	tracker.Start(5, 1024*1024) // 5 files, 1MB total
-
-	// Simulate progress
-	tracker.UpdateFile(1, "file1.rar")
-	tracker.UpdateBytes(200 * 1024) // 200KB
-
-	tracker.UpdateFile(2, "file2.rar")
-	tracker.UpdateBytes(300 * 1024) // 300KB more
-
-	// Check progress
-	percent, eta, rate := tracker.GetProgress()
-	assert.Greater(t, percent, 0.0)
-	assert.Less(t, percent, 100.0)
-	assert.Greater(t, rate, 0.0)
-	_ = eta // ETA may be 0 if very fast
-
-	// Mark done
-	tracker.Done(true, 1024*1024, 10, nil)
-}
-
-func TestProgressTracker_IsStalled(t *testing.T) {
-	t.Parallel()
-
-	cfg := ProgressConfig{
-		ReportInterval: 50 * time.Millisecond,
-		StallTimeout:   100 * time.Millisecond,
-	}
-
-	tracker := NewProgressTracker("test-stall", "/path/to/archive", cfg)
-	tracker.Start(1, 1024)
-
-	// Initially not stalled
-	assert.False(t, tracker.IsStalled())
-
-	// Wait for stall timeout
-	time.Sleep(150 * time.Millisecond)
-	assert.True(t, tracker.IsStalled())
-
-	// Activity resets stall
-	tracker.RecordActivity()
-	assert.False(t, tracker.IsStalled())
-
-	tracker.Done(true, 1024, 1, nil)
-}
-
-func TestProgressTracker_SetBytesExtracted(t *testing.T) {
-	t.Parallel()
-
-	cfg := DefaultProgressConfig()
-	tracker := NewProgressTracker("test-set", "/path", cfg)
-	tracker.Start(1, 1000)
-
-	tracker.SetBytesExtracted(500)
-
-	percent, _, _ := tracker.GetProgress()
-	assert.InDelta(t, 50.0, percent, 0.1)
-
-	tracker.Done(true, 1000, 1, nil)
-}
-
-func TestProgressTracker_NotStarted(t *testing.T) {
-	t.Parallel()
-
-	cfg := DefaultProgressConfig()
-	tracker := NewProgressTracker("test-not-started", "/path", cfg)
-
-	// Not stalled if not started
-	assert.False(t, tracker.IsStalled())
-
-	// GetProgress should return zeros
-	percent, eta, rate := tracker.GetProgress()
-	assert.Equal(t, 0.0, percent)
-	assert.Equal(t, time.Duration(0), eta)
-	assert.Equal(t, 0.0, rate)
-}
-
 func TestProgressManager_BasicFlow(t *testing.T) {
 	t.Parallel()
 
-	cfg := ProgressConfig{
-		ReportInterval: 100 * time.Millisecond,
-		StallTimeout:   5 * time.Minute,
+	cfg := &config.ExtractConfig{
+		ProgressInterval: 100 * time.Millisecond,
+		StallTimeout:     500 * time.Millisecond,
 	}
 
 	pm := NewProgressManager(cfg)
 	require.NotNil(t, pm)
+	assert.Equal(t, 0, len(pm.trackers))
 
-	assert.Equal(t, 0, pm.ActiveCount())
+	// Create a temporary output directory for testing
+	tmpDir := t.TempDir()
+	outputPath := filepath.Join(tmpDir, "test_output")
+	err := os.MkdirAll(outputPath, 0755)
+	require.NoError(t, err)
 
 	// Start tracking
-	tracker := pm.StartTracking("archive1", "/path/1", 3, 1024)
-	require.NotNil(t, tracker)
-	assert.Equal(t, 1, pm.ActiveCount())
-
-	// Get tracker
-	got := pm.GetTracker("/path/1")
-	assert.Equal(t, tracker, got)
-
-	// Unknown path returns nil
-	assert.Nil(t, pm.GetTracker("/unknown"))
+	pm.StartTracking("test-archive", "/path/to/archive", outputPath, 1, 1024*1024)
+	assert.Equal(t, 1, len(pm.trackers))
 
 	// Stop tracking
-	pm.StopTracking("/path/1", true, 1024, 5, nil)
-	assert.Equal(t, 0, pm.ActiveCount())
-	assert.Nil(t, pm.GetTracker("/path/1"))
+	pm.StopTracking("/path/to/archive")
+
+	// Give goroutine time to clean up
+	time.Sleep(50 * time.Millisecond)
+
+	assert.Equal(t, 0, len(pm.trackers))
 }
 
 func TestProgressManager_MultipleConcurrent(t *testing.T) {
 	t.Parallel()
 
-	cfg := DefaultProgressConfig()
+	cfg := &config.ExtractConfig{
+		ProgressInterval: 100 * time.Millisecond,
+		StallTimeout:     5 * time.Minute,
+	}
+
 	pm := NewProgressManager(cfg)
 
-	// Start multiple trackers
-	pm.StartTracking("archive1", "/path/1", 1, 100)
-	pm.StartTracking("archive2", "/path/2", 2, 200)
-	pm.StartTracking("archive3", "/path/3", 3, 300)
+	tmpDir := t.TempDir()
 
-	assert.Equal(t, 3, pm.ActiveCount())
+	// Start multiple trackers
+	pm.StartTracking("archive1", "/path/1", filepath.Join(tmpDir, "out1"), 1, 100)
+	pm.StartTracking("archive2", "/path/2", filepath.Join(tmpDir, "out2"), 2, 200)
+	pm.StartTracking("archive3", "/path/3", filepath.Join(tmpDir, "out3"), 3, 300)
+
+	assert.Equal(t, 3, len(pm.trackers))
 
 	// Stop one
-	pm.StopTracking("/path/2", true, 200, 5, nil)
-	assert.Equal(t, 2, pm.ActiveCount())
+	pm.StopTracking("/path/2")
+	time.Sleep(50 * time.Millisecond)
+	assert.Equal(t, 2, len(pm.trackers))
 
 	// Clean up
-	pm.StopTracking("/path/1", true, 100, 3, nil)
-	pm.StopTracking("/path/3", false, 0, 0, assert.AnError)
-	assert.Equal(t, 0, pm.ActiveCount())
+	pm.StopTracking("/path/1")
+	pm.StopTracking("/path/3")
+	time.Sleep(50 * time.Millisecond)
+	assert.Equal(t, 0, len(pm.trackers))
+}
+
+func TestProgressTracker_GetOutputSize(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	outputPath := filepath.Join(tmpDir, "test_output")
+	err := os.MkdirAll(outputPath, 0755)
+	require.NoError(t, err)
+
+	// Create test files
+	file1 := filepath.Join(outputPath, "file1.txt")
+	err = os.WriteFile(file1, make([]byte, 1024), 0644)
+	require.NoError(t, err)
+
+	file2 := filepath.Join(outputPath, "file2.txt")
+	err = os.WriteFile(file2, make([]byte, 2048), 0644)
+	require.NoError(t, err)
+
+	tracker := &ProgressTracker{
+		name:         "test",
+		sourcePath:   "/source",
+		outputPath:   outputPath,
+		archiveBytes: 5000,
+		startTime:    time.Now(),
+		lastCheck:    time.Now(),
+		done:         make(chan struct{}),
+	}
+
+	size := tracker.getOutputSize()
+	assert.Equal(t, int64(3072), size) // 1024 + 2048
+}
+
+func TestProgressTracker_GetOutputSize_NonExistent(t *testing.T) {
+	t.Parallel()
+
+	tracker := &ProgressTracker{
+		name:         "test",
+		sourcePath:   "/source",
+		outputPath:   "/nonexistent/path",
+		archiveBytes: 1000,
+		startTime:    time.Now(),
+		lastCheck:    time.Now(),
+		done:         make(chan struct{}),
+	}
+
+	size := tracker.getOutputSize()
+	assert.Equal(t, int64(0), size)
+}
+
+func TestProgressTracker_IsStalled(t *testing.T) {
+	t.Parallel()
+
+	tracker := &ProgressTracker{
+		name:         "test",
+		sourcePath:   "/source",
+		outputPath:   "/output",
+		archiveBytes: 1000,
+		startTime:    time.Now(),
+		lastCheck:    time.Now(),
+		stallWarned:  false,
+		done:         make(chan struct{}),
+	}
+
+	assert.False(t, tracker.IsStalled())
+
+	tracker.stallWarned = true
+	assert.True(t, tracker.IsStalled())
 }
 
 func TestFormatBytes(t *testing.T) {
@@ -175,26 +166,72 @@ func TestFormatBytes(t *testing.T) {
 	}
 }
 
-func TestDefaultProgressConfig(t *testing.T) {
+func TestFormatDuration(t *testing.T) {
 	t.Parallel()
 
-	cfg := DefaultProgressConfig()
-	assert.Equal(t, 30*time.Second, cfg.ReportInterval)
-	assert.Equal(t, 5*time.Minute, cfg.StallTimeout)
+	tests := []struct {
+		duration time.Duration
+		expected string
+	}{
+		{5 * time.Second, "5s"},
+		{65 * time.Second, "1m5s"},
+		{125 * time.Second, "2m5s"},
+		{3665 * time.Second, "1h1m5s"},
+		{7325 * time.Second, "2h2m5s"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.expected, func(t *testing.T) {
+			result := formatDuration(tc.duration)
+			assert.Equal(t, tc.expected, result)
+		})
+	}
 }
 
-func TestProgressTracker_ZeroTotalBytes(t *testing.T) {
+func TestProgressTracker_CheckAndReport(t *testing.T) {
 	t.Parallel()
 
-	cfg := DefaultProgressConfig()
-	tracker := NewProgressTracker("test-zero", "/path", cfg)
-	tracker.Start(1, 0) // Zero total bytes
+	tmpDir := t.TempDir()
+	outputPath := filepath.Join(tmpDir, "test_output")
+	err := os.MkdirAll(outputPath, 0755)
+	require.NoError(t, err)
 
-	// Should not panic, return zeros
-	percent, eta, rate := tracker.GetProgress()
-	assert.Equal(t, 0.0, percent)
-	assert.Equal(t, time.Duration(0), eta)
-	assert.Equal(t, 0.0, rate)
+	cfg := &config.ExtractConfig{
+		ProgressInterval: 100 * time.Millisecond,
+		StallTimeout:     200 * time.Millisecond,
+	}
 
-	tracker.Done(true, 0, 1, nil)
+	tracker := &ProgressTracker{
+		name:         "test",
+		sourcePath:   "/source",
+		outputPath:   outputPath,
+		archiveBytes: 10000,
+		startTime:    time.Now(),
+		lastCheck:    time.Now().Add(-150 * time.Millisecond),
+		lastSize:     0,
+		stallWarned:  false,
+		done:         make(chan struct{}),
+	}
+
+	// Create a file to simulate extraction progress
+	testFile := filepath.Join(outputPath, "test.bin")
+	err = os.WriteFile(testFile, make([]byte, 5000), 0644)
+	require.NoError(t, err)
+
+	// First check - should not be stalled (has data)
+	tracker.checkAndReport(cfg)
+	assert.False(t, tracker.stallWarned)
+	assert.Equal(t, int64(5000), tracker.lastSize)
+
+	// Wait and check again with no change - should trigger stall
+	time.Sleep(250 * time.Millisecond)
+	tracker.checkAndReport(cfg)
+	assert.True(t, tracker.stallWarned)
+
+	// Add more data - should reset stall warning
+	err = os.WriteFile(testFile, make([]byte, 8000), 0644)
+	require.NoError(t, err)
+	tracker.checkAndReport(cfg)
+	assert.False(t, tracker.stallWarned)
+	assert.Equal(t, int64(8000), tracker.lastSize)
 }

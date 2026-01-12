@@ -49,23 +49,11 @@ type Request struct {
 }
 
 func NewQueue(cfg *config.ExtractConfig, callback func(*Result)) *Queue {
-	progressCfg := ProgressConfig{
-		ReportInterval: cfg.ProgressInterval,
-		StallTimeout:   cfg.StallTimeout,
-	}
-	// Use defaults if not configured
-	if progressCfg.ReportInterval == 0 {
-		progressCfg.ReportInterval = 30 * time.Second
-	}
-	if progressCfg.StallTimeout == 0 {
-		progressCfg.StallTimeout = 5 * time.Minute
-	}
-
 	q := &Queue{
 		config:      cfg,
 		callback:    callback,
 		activePaths: make(map[string]struct{}),
-		progress:    NewProgressManager(progressCfg),
+		progress:    NewProgressManager(cfg),
 	}
 
 	q.xtractr = xtractr.NewQueue(&xtractr.Config{
@@ -164,18 +152,19 @@ func (q *Queue) handleCallback(resp *xtractr.Response, req *Request) {
 		logger.Debug("[Queue] Stats updated: waiting=%d, extracting=%d", q.stats.Waiting, q.stats.Extracting)
 
 		// Start progress tracking
+		outputPath := req.Path + "_xtractr"
 		totalFiles := 0
-		totalBytes := int64(0)
+		archiveBytes := int64(0)
 		for _, archives := range resp.Archives {
 			totalFiles += len(archives)
 			// Try to get size estimate from archive files
 			for _, archive := range archives {
 				if info, err := getFileSize(archive); err == nil {
-					totalBytes += info
+					archiveBytes += info
 				}
 			}
 		}
-		q.progress.StartTracking(req.Name, req.Path, totalFiles, totalBytes)
+		q.progress.StartTracking(req.Name, req.Path, outputPath, totalFiles, archiveBytes)
 
 		return
 	}
@@ -184,7 +173,7 @@ func (q *Queue) handleCallback(resp *xtractr.Response, req *Request) {
 		resp.X.Name, resp.Error == nil, len(resp.Archives), len(resp.NewFiles), resp.Size)
 
 	// Stop progress tracking
-	q.progress.StopTracking(req.Path, resp.Error == nil, resp.Size, len(resp.NewFiles), resp.Error)
+	q.progress.StopTracking(req.Path)
 
 	q.mu.Lock()
 	q.stats.Extracting--
