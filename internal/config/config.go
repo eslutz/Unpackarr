@@ -25,9 +25,11 @@ type Config struct {
 }
 
 type ExtractConfig struct {
-	Parallel   int      `xml:"parallel"`
-	DeleteOrig bool     `xml:"delete_orig"`
-	Passwords  []string `xml:"passwords"`
+	Parallel         int           `xml:"parallel"`
+	DeleteOrig       bool          `xml:"delete_orig"`
+	Passwords        []string      `xml:"passwords"`
+	ProgressInterval time.Duration `xml:"progress_interval"`
+	StallTimeout     time.Duration `xml:"stall_timeout"`
 }
 
 type WatchConfig struct {
@@ -60,8 +62,10 @@ func Load() (*Config, error) {
 		HealthPort: 9092,
 		LogLevel:   "INFO",
 		Extract: ExtractConfig{
-			Parallel:   1,
-			DeleteOrig: true,
+			Parallel:         1,
+			DeleteOrig:       true,
+			ProgressInterval: 30 * time.Second,
+			StallTimeout:     5 * time.Minute,
 		},
 		Watch: WatchConfig{
 			FolderWatchEnabled: false,

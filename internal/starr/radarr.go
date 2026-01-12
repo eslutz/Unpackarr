@@ -61,9 +61,10 @@ func (r *RadarrClient) poll(ctx context.Context, c *Client) error {
 		if record.Status == "completed" && record.TrackedDownloadState == "importPending" {
 			logger.Debug("[Radarr] %s matches extraction criteria (completed + importPending)", item.Name)
 			matched++
-			if err := c.QueueExtract(item); err != nil {
+			added, err := c.QueueExtract(item)
+			if err != nil {
 				logger.Error("[Radarr] Queue extract error for %s: %v", item.Name, err)
-			} else {
+			} else if added {
 				logger.Info("[Radarr] Queued extraction: %s", item.Name)
 			}
 		} else {

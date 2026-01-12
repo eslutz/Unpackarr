@@ -2,6 +2,7 @@ package extract
 
 import (
 	"fmt"
+	"os"
 	"sync"
 	"time"
 
@@ -11,11 +12,13 @@ import (
 )
 
 type Queue struct {
-	xtractr  *xtractr.Xtractr
-	config   *config.ExtractConfig
-	callback func(*Result)
-	mu       sync.RWMutex
-	stats    Stats
+	xtractr     *xtractr.Xtractr
+	config      *config.ExtractConfig
+	callback    func(*Result)
+	mu          sync.RWMutex
+	stats       Stats
+	activePaths map[string]struct{} // tracks paths currently queued or extracting
+	progress    *ProgressManager    // tracks extraction progress
 }
 
 type Stats struct {
@@ -46,9 +49,23 @@ type Request struct {
 }
 
 func NewQueue(cfg *config.ExtractConfig, callback func(*Result)) *Queue {
+	progressCfg := ProgressConfig{
+		ReportInterval: cfg.ProgressInterval,
+		StallTimeout:   cfg.StallTimeout,
+	}
+	// Use defaults if not configured
+	if progressCfg.ReportInterval == 0 {
+		progressCfg.ReportInterval = 30 * time.Second
+	}
+	if progressCfg.StallTimeout == 0 {
+		progressCfg.StallTimeout = 5 * time.Minute
+	}
+
 	q := &Queue{
-		config:   cfg,
-		callback: callback,
+		config:      cfg,
+		callback:    callback,
+		activePaths: make(map[string]struct{}),
+		progress:    NewProgressManager(progressCfg),
 	}
 
 	q.xtractr = xtractr.NewQueue(&xtractr.Config{
@@ -60,16 +77,27 @@ func NewQueue(cfg *config.ExtractConfig, callback func(*Result)) *Queue {
 	return q
 }
 
-func (q *Queue) Add(req *Request) (int, error) {
+func (q *Queue) Add(req *Request) (queueSize int, added bool, err error) {
 	logger.Debug("[Queue] Adding extraction request: name=%s, path=%s, source=%s, deleteOrig=%t",
 		req.Name, req.Path, req.Source, req.DeleteOrig)
+
+	// Check if this path is already queued or being extracted
+	q.mu.RLock()
+	_, isActive := q.activePaths[req.Path]
+	q.mu.RUnlock()
+
+	if isActive {
+		logger.Debug("[Queue] Skipping %s: path already queued or extracting", req.Name)
+		return q.stats.Waiting + q.stats.Extracting, false, nil
+	}
 
 	passwords := append([]string{}, q.config.Passwords...)
 	passwords = append(passwords, req.Passwords...)
 
 	logger.Debug("[Queue] Using %d password(s) for %s", len(passwords), req.Name)
 
-	queueSize, err := q.xtractr.Extract(&xtractr.Xtract{
+	var xtractrErr error
+	queueSize, xtractrErr = q.xtractr.Extract(&xtractr.Xtract{
 		Name:       req.Name,
 		Password:   "",
 		Passwords:  passwords,
@@ -84,24 +112,40 @@ func (q *Queue) Add(req *Request) (int, error) {
 		},
 	})
 
-	if err != nil {
-		logger.Debug("[Queue] Failed to add %s: %v", req.Name, err)
-		return 0, fmt.Errorf("queue extract: %w", err)
+	if xtractrErr != nil {
+		logger.Debug("[Queue] Failed to add %s: %v", req.Name, xtractrErr)
+		return 0, false, fmt.Errorf("queue extract: %w", xtractrErr)
 	}
 
 	q.mu.Lock()
 	q.stats.Waiting++
+	q.activePaths[req.Path] = struct{}{}
 	q.mu.Unlock()
 
 	logger.Debug("[Queue] Successfully added %s (queue size: %d, waiting: %d)", req.Name, queueSize, q.stats.Waiting)
 
-	return queueSize, nil
+	return queueSize, true, nil
 }
 
 func (q *Queue) Stats() Stats {
 	q.mu.RLock()
 	defer q.mu.RUnlock()
 	return q.stats
+}
+
+// IsActive returns true if the given path is currently queued or being extracted
+func (q *Queue) IsActive(path string) bool {
+	q.mu.RLock()
+	defer q.mu.RUnlock()
+	_, active := q.activePaths[path]
+	return active
+}
+
+// ActiveCount returns the number of paths currently being tracked
+func (q *Queue) ActiveCount() int {
+	q.mu.RLock()
+	defer q.mu.RUnlock()
+	return len(q.activePaths)
 }
 
 func (q *Queue) Stop() {
@@ -118,14 +162,33 @@ func (q *Queue) handleCallback(resp *xtractr.Response, req *Request) {
 		q.stats.Extracting++
 		q.mu.Unlock()
 		logger.Debug("[Queue] Stats updated: waiting=%d, extracting=%d", q.stats.Waiting, q.stats.Extracting)
+
+		// Start progress tracking
+		totalFiles := 0
+		totalBytes := int64(0)
+		for _, archives := range resp.Archives {
+			totalFiles += len(archives)
+			// Try to get size estimate from archive files
+			for _, archive := range archives {
+				if info, err := getFileSize(archive); err == nil {
+					totalBytes += info
+				}
+			}
+		}
+		q.progress.StartTracking(req.Name, req.Path, totalFiles, totalBytes)
+
 		return
 	}
 
 	logger.Debug("[Queue] Extraction completed for %s (success=%t, archives=%d, files=%d, size=%d)",
 		resp.X.Name, resp.Error == nil, len(resp.Archives), len(resp.NewFiles), resp.Size)
 
+	// Stop progress tracking
+	q.progress.StopTracking(req.Path, resp.Error == nil, resp.Size, len(resp.NewFiles), resp.Error)
+
 	q.mu.Lock()
 	q.stats.Extracting--
+	delete(q.activePaths, req.Path)
 	q.mu.Unlock()
 
 	logger.Debug("[Queue] Stats updated: waiting=%d, extracting=%d", q.stats.Waiting, q.stats.Extracting)
@@ -160,4 +223,13 @@ func (q *Queue) Printf(format string, v ...any) {
 
 func (q *Queue) Debugf(format string, v ...any) {
 	logger.Debug(format, v...)
+}
+
+// getFileSize returns the size of a file in bytes
+func getFileSize(path string) (int64, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return 0, err
+	}
+	return info.Size(), nil
 }

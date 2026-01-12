@@ -128,7 +128,7 @@ func (w *Watcher) hasArchives(path string) bool {
 }
 
 func (w *Watcher) queueExtraction(path, name string) {
-	_, err := w.queue.Add(&Request{
+	_, added, err := w.queue.Add(&Request{
 		Name:       name,
 		Path:       path,
 		Source:     "folder",
@@ -138,8 +138,10 @@ func (w *Watcher) queueExtraction(path, name string) {
 
 	if err != nil {
 		logger.Error("[Watcher] Error queuing %s: %v", name, err)
-	} else {
+	} else if added {
 		logger.Info("[Watcher] Queued: %s", name)
+	} else {
+		logger.Debug("[Watcher] Skipped %s: already queued", name)
 	}
 }
 

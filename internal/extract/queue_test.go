@@ -133,3 +133,157 @@ func TestResultWithError(t *testing.T) {
 	}
 }
 
+func TestQueueDeduplication(t *testing.T) {
+	cfg := &config.ExtractConfig{
+		Parallel: 1,
+	}
+
+	queue := NewQueue(cfg, nil)
+
+	// First add should succeed
+	req := &Request{
+		Name:       "test-archive",
+		Path:       "/downloads/test",
+		Source:     "radarr",
+		DeleteOrig: false,
+	}
+
+	_, added, err := queue.Add(req)
+	if err != nil {
+		t.Fatalf("First Add() should succeed: %v", err)
+	}
+	if !added {
+		t.Error("First Add() should return added=true")
+	}
+
+	stats := queue.Stats()
+	if stats.Waiting != 1 {
+		t.Errorf("After first add, waiting = %d, want 1", stats.Waiting)
+	}
+
+	// Second add with same path should be skipped (no error, but not added)
+	_, added, err = queue.Add(req)
+	if err != nil {
+		t.Fatalf("Second Add() should not error: %v", err)
+	}
+	if added {
+		t.Error("Second Add() should return added=false for duplicate")
+	}
+
+	stats = queue.Stats()
+	if stats.Waiting != 1 {
+		t.Errorf("After duplicate add, waiting = %d, want 1 (should not add duplicate)", stats.Waiting)
+	}
+
+	// Different path should be added
+	req2 := &Request{
+		Name:       "another-archive",
+		Path:       "/downloads/another",
+		Source:     "sonarr",
+		DeleteOrig: false,
+	}
+
+	_, added, err = queue.Add(req2)
+	if err != nil {
+		t.Fatalf("Third Add() with different path should succeed: %v", err)
+	}
+	if !added {
+		t.Error("Third Add() with different path should return added=true")
+	}
+
+	stats = queue.Stats()
+	if stats.Waiting != 2 {
+		t.Errorf("After adding different path, waiting = %d, want 2", stats.Waiting)
+	}
+}
+
+func TestQueueIsActive(t *testing.T) {
+	cfg := &config.ExtractConfig{
+		Parallel: 1,
+	}
+
+	queue := NewQueue(cfg, nil)
+
+	// Initially no paths should be active
+	if queue.IsActive("/downloads/test") {
+		t.Error("Path should not be active before adding")
+	}
+	if queue.ActiveCount() != 0 {
+		t.Errorf("ActiveCount should be 0, got %d", queue.ActiveCount())
+	}
+
+	// Add a request
+	req := &Request{
+		Name:       "test-archive",
+		Path:       "/downloads/test",
+		Source:     "radarr",
+		DeleteOrig: false,
+	}
+
+	_, added, err := queue.Add(req)
+	if err != nil {
+		t.Fatalf("Add() should succeed: %v", err)
+	}
+	if !added {
+		t.Error("Add() should return added=true")
+	}
+
+	// Path should now be active
+	if !queue.IsActive("/downloads/test") {
+		t.Error("Path should be active after adding")
+	}
+	if queue.ActiveCount() != 1 {
+		t.Errorf("ActiveCount should be 1, got %d", queue.ActiveCount())
+	}
+
+	// Different path should not be active
+	if queue.IsActive("/downloads/other") {
+		t.Error("Different path should not be active")
+	}
+}
+
+func TestQueueDifferentNamesSamePath(t *testing.T) {
+	cfg := &config.ExtractConfig{
+		Parallel: 1,
+	}
+
+	queue := NewQueue(cfg, nil)
+
+	// Add first request
+	req1 := &Request{
+		Name:       "archive-v1",
+		Path:       "/downloads/test",
+		Source:     "radarr",
+		DeleteOrig: false,
+	}
+
+	_, added, err := queue.Add(req1)
+	if err != nil {
+		t.Fatalf("First Add() should succeed: %v", err)
+	}
+	if !added {
+		t.Error("First Add() should return added=true")
+	}
+
+	// Add second request with different name but same path - should be deduplicated
+	req2 := &Request{
+		Name:       "archive-v2",
+		Path:       "/downloads/test",
+		Source:     "sonarr",
+		DeleteOrig: false,
+	}
+
+	_, added, err = queue.Add(req2)
+	if err != nil {
+		t.Fatalf("Second Add() should not error: %v", err)
+	}
+	if added {
+		t.Error("Second Add() with same path should return added=false")
+	}
+
+	stats := queue.Stats()
+	if stats.Waiting != 1 {
+		t.Errorf("Waiting should be 1, got %d", stats.Waiting)
+	}
+}
+

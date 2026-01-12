@@ -120,9 +120,9 @@ func (c *Client) ShouldProcess(item *QueueItem) bool {
 	return true
 }
 
-func (c *Client) QueueExtract(item *QueueItem) error {
+func (c *Client) QueueExtract(item *QueueItem) (added bool, err error) {
 	logger.Debug("[%s] Attempting to queue extraction: name=%s, path=%s", c.name, item.Name, item.Path)
-	_, err := c.queue.Add(&extract.Request{
+	_, added, err = c.queue.Add(&extract.Request{
 		Name:       item.Name,
 		Path:       item.Path,
 		Source:     c.name,
@@ -131,10 +131,12 @@ func (c *Client) QueueExtract(item *QueueItem) error {
 	})
 	if err != nil {
 		logger.Debug("[%s] Queue.Add failed: %v", c.name, err)
-	} else {
+	} else if added {
 		logger.Debug("[%s] Queue.Add succeeded", c.name)
+	} else {
+		logger.Debug("[%s] Queue.Add skipped (already queued)", c.name)
 	}
-	return err
+	return added, err
 }
 
 func (c *Client) SetQueueSize(size int) {

@@ -60,9 +60,10 @@ func (l *LidarrClient) poll(ctx context.Context, c *Client) error {
 		if record.Status == "completed" {
 			logger.Debug("[Lidarr] %s matches extraction criteria (completed)", item.Name)
 			matched++
-			if err := c.QueueExtract(item); err != nil {
+			added, err := c.QueueExtract(item)
+			if err != nil {
 				logger.Error("[Lidarr] Queue extract error for %s: %v", item.Name, err)
-			} else {
+			} else if added {
 				logger.Info("[Lidarr] Queued extraction: %s", item.Name)
 			}
 		} else {
