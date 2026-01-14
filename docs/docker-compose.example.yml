@@ -3,60 +3,50 @@ services:
     image: ghcr.io/eslutz/unpackarr:latest
     container_name: unpackarr
     environment:
+      # Wrapper configuration
       - LOG_LEVEL=INFO
       - HEALTH_PORT=9092
 
+      # Unpackerr configuration (see https://unpackerr.zip/docs/install/configuration)
       # Extraction settings
-      - EXTRACT_PARALLEL=2
-      - EXTRACT_DELETE_ORIG=true
-      - EXTRACT_PASSWORDS=
-
-      # Timing
-      - POLL_INTERVAL=5m
-      - MARKER_CLEANUP_INTERVAL=1h
-
-      # Folder watching
-      - FOLDER_WATCH_ENABLED=false
-      - FOLDER_WATCH_PATHS=/downloads
+      - UN_PARALLEL=2
+      - UN_DELETE_ORIG=false
+      - UN_PASSWORDS=
 
       # Sonarr
-      - SONARR_URL=http://sonarr:8989
-      - SONARR_API_KEY=${SONARR_API_KEY}
-      - SONARR_PATHS=/downloads
-      - SONARR_PROTOCOLS=torrent
-      - SONARR_TIMEOUT=30s
+      - UN_SONARR_0_URL=http://sonarr:8989
+      - UN_SONARR_0_API_KEY=${SONARR_API_KEY}
+      - UN_SONARR_0_PATHS_0=/downloads
 
       # Radarr
-      - RADARR_URL=http://radarr:7878
-      - RADARR_API_KEY=${RADARR_API_KEY}
-      - RADARR_PATHS=/downloads
-      - RADARR_PROTOCOLS=torrent
-      - RADARR_TIMEOUT=30s
+      - UN_RADARR_0_URL=http://radarr:7878
+      - UN_RADARR_0_API_KEY=${RADARR_API_KEY}
+      - UN_RADARR_0_PATHS_0=/downloads
 
       # Lidarr (optional)
-      # - LIDARR_URL=http://lidarr:8686
-      # - LIDARR_API_KEY=${LIDARR_API_KEY}
+      # - UN_LIDARR_0_URL=http://lidarr:8686
+      # - UN_LIDARR_0_API_KEY=${LIDARR_API_KEY}
 
       # Readarr (optional)
-      # - READARR_URL=http://readarr:8787
-      # - READARR_API_KEY=${READARR_API_KEY}
+      # - UN_READARR_0_URL=http://readarr:8787
+      # - UN_READARR_0_API_KEY=${READARR_API_KEY}
 
-      # Webhook notifications (optional)
-      - WEBHOOK_URL=
-      - WEBHOOK_TEMPLATE=discord
-      - WEBHOOK_EVENTS=extracted,failed
-      - WEBHOOK_TIMEOUT=10s
+      # Webhook notifications (optional - via Unpackerr)
+      # - UN_WEBHOOK_0_URL=https://discord.com/api/webhooks/xxx
+      # - UN_WEBHOOK_0_NICKNAME=Unpackerr
+      # - UN_WEBHOOK_0_CHANNEL=downloads
 
     volumes:
       - /path/to/downloads:/downloads
 
     ports:
-      - "9092:9092"
+      - "9092:9092"  # Wrapper health endpoints
+      - "5656:5656"  # Unpackerr web UI and API
 
     restart: unless-stopped
 
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9092/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9092/ready"]
       interval: 30s
       timeout: 5s
       retries: 3
