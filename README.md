@@ -1,4 +1,4 @@
-# Unpackarr
+# Unpackarr Wrapper
 
 [![Workflow Status](https://github.com/eslutz/unpackarr/actions/workflows/release.yml/badge.svg)](https://github.com/eslutz/unpackarr/actions/workflows/release.yml)
 [![Security Check](https://github.com/eslutz/unpackarr/actions/workflows/security.yml/badge.svg)](https://github.com/eslutz/unpackarr/actions/workflows/security.yml)
@@ -6,209 +6,214 @@
 [![License](https://img.shields.io/github/license/eslutz/unpackarr)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/eslutz/unpackarr?color=007ec6)](https://github.com/eslutz/unpackarr/releases/latest)
 
-Container-native archive extraction service for the *arr stack. Automatically extracts compressed downloads for Sonarr, Radarr, Lidarr, and Readarr.
+Container-native wrapper around [Unpackerr](https://github.com/Unpackerr/unpackerr) that adds enhanced health monitoring and container features.
+
+## Overview
+
+This project wraps the official [Unpackerr](https://github.com/Unpackerr/unpackerr) binary and adds:
+
+- **Enhanced health checks** — Container-native health endpoints on port 9092
+- **Process monitoring** — Monitors the Unpackerr subprocess status
+- **Unified logging** — Streams Unpackerr logs with clear prefixes
+- **Simple configuration** — Minimal wrapper config, full Unpackerr passthrough
+
+All archive extraction functionality is provided by the official Unpackerr binary. This wrapper focuses on providing better container integration and health monitoring.
 
 ## Features
 
-- **Stateless** — No databases, no history, restart anytime
-- **Environment-only config** — 12-factor compliant, no config files
-- **Multi-app support** — Direct integration with Sonarr, Radarr, Lidarr, Readarr via [golift.io/starr](https://github.com/golift/starr)
-- **Folder watching** — Optional directory scanning for standalone use
-- **Webhook notifications** — Discord, Slack, Gotify, or custom JSON
-- **Prometheus metrics** — Full observability with extraction stats
-- **Container-native** — Alpine-based, healthchecks, non-root user
+- **Wrapper Layer:**
+  - HTTP health server on port 9092 (liveness, readiness, status, metrics)
+  - Process monitoring and lifecycle management
+  - Unified log streaming with prefixes
+  - Minimal configuration (just HEALTH_PORT and LOG_LEVEL for wrapper)
+
+- **Unpackerr (Official Binary):**
+  - Archive extraction for Sonarr, Radarr, Lidarr, Readarr
+  - Folder watching for standalone use
+  - Webhook notifications
+  - All standard Unpackerr features
 
 ## Quick Start
 
 ```bash
 docker run -d \
   --name unpackarr \
-  -e SONARR_URL=http://sonarr:8989 \
-  -e SONARR_API_KEY=your-api-key \
-  -e RADARR_URL=http://radarr:7878 \
-  -e RADARR_API_KEY=your-api-key \
+  -e UN_SONARR_0_URL=http://sonarr:8989 \
+  -e UN_SONARR_0_API_KEY=your-api-key \
+  -e UN_RADARR_0_URL=http://radarr:7878 \
+  -e UN_RADARR_0_API_KEY=your-api-key \
   -v /path/to/downloads:/downloads \
   -p 9092:9092 \
+  -p 5656:5656 \
   ghcr.io/eslutz/unpackarr:latest
 ```
 
+**Ports:**
+- `9092` - Wrapper health endpoints (/ping, /health, /ready, /status) and wrapper metrics (/metrics)
+- `5656` - Unpackerr metrics endpoint (/metrics) - requires UN_WEBSERVER_METRICS=true
+
 ## Configuration
 
-All configuration is done via environment variables. For a comprehensive reference including cnfg naming conventions and Docker Compose examples, see **[docs/environment-variables.md](docs/environment-variables.md)**.
+### Wrapper Configuration
 
-### Core Settings
-
-Key settings (see [docs/.env.example](docs/.env.example) for all options):
+The wrapper itself only needs two environment variables:
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `HEALTH_PORT` | `9092` | HTTP server port |
-| `LOG_LEVEL` | `INFO` | Log level: DEBUG, INFO, WARN, ERROR |
-| `EXTRACT_PARALLEL` | `1` | Concurrent extractions |
-| `EXTRACT_DELETE_ORIG` | `true` | Delete archives after extraction |
+| `HEALTH_PORT` | `9092` | HTTP health server port for wrapper |
+| `LOG_LEVEL` | `INFO` | Log level for wrapper: DEBUG, INFO, WARN, ERROR |
 
-### Timing
+### Unpackerr Configuration
 
-Duration values support: `s` (seconds), `m` (minutes), `h` (hours). Examples: `30s`, `5m`, `2h`, `90m`, `1h30m`
+All other environment variables are passed through to Unpackerr. See the [official Unpackerr documentation](https://unpackerr.zip/docs/install/configuration) for full configuration options.
 
-**Important**: Timing variables require the `TIMING_` prefix due to cnfg struct hierarchy. See [docs/environment-variables.md](docs/environment-variables.md#notes-on-cnfg-variable-naming) for details.
+**Common Unpackerr variables:**
 
-| Variable | Default | Description |
+| Variable | Example | Description |
 | --- | --- | --- |
-| `TIMING_POLL_INTERVAL` | `5m` | How often to check for new work (applies to both folder watching and *arr app queue polling) |
-| `TIMING_STARR_TIMEOUT` | `30s` | API request timeout for *arr applications |
-| `WATCH_MARKER_CLEANUP_INTERVAL` | `1h` | How often to clean up orphaned marker files |
-environment-variables.md](docs/environment-variables.md#folder-watcher-settings) for all options.
+| `UN_SONARR_0_URL` | `http://sonarr:8989` | Sonarr URL |
+| `UN_SONARR_0_API_KEY` | `your-api-key` | Sonarr API key |
+| `UN_RADARR_0_URL` | `http://radarr:7878` | Radarr URL |
+| `UN_RADARR_0_API_KEY` | `your-api-key` | Radarr API key |
+| `UN_PARALLEL` | `1` | Concurrent extractions |
+| `UN_DELETE_ORIG` | `false` | Delete archives after extraction |
 
-| Variable | Default | Description |
-| --- | --- | --- |
-| `WATCH_FOLDER_WATCH_ENABLED` | `false` | Enable folder watching |
-| `WATCH_ariable | Default | Description |
-| --- | --- | --- |
-| `FOLDER_WATCH_ENABLED` | `false` | Enable folder watching |
-| `FOLDER_WATCH_PATHS` | `/downloads` | Comma-separated watch paths |
-
-#### Marker Files
-
-When `EXTRACT_DELETE_ORIG` is set to `false`, Unpackarr uses hidden marker files to prevent re-extracting archives across restarts. This is essential for users who keep archives for seeding torrents.
-
-- **Format**: `.<archive-name>.unpackarr` (e.g., `.movie.rar.unpackarr`)
-- **Created**: After successful extraction
-- **Cleanup**: Orphaned markers (where the archive no longer exists) are automatically removed on startup and at the configured `MARKER_CLEANUP_INTERVAL`
-- **Multi-part archives**: One marker per main archive file (e.g., only `.movie.rar.unpackarr` for `movie.rar`, `movie.r00`, etc.)
-
-**Note**: When `EXTRACT_DELETE_ORIG=true`, marker files are not created since archives are deleted after extraction.
-environment-variables.md](docs/environment-variables.md#webhook-settings
-
-### Webhook Notifications
-
-Optional notifications to Discord, Slack, Gotify, or custom JSON endpoints. See [docs/.env.example](docs/.env.example) for all options.
-
-| Variable | Default | Description |
-| --- | --- | --- |
-| `WEBHOOK_URL` | | Webhook endpoint URL |
-| `WEBHOOK_TEMPLATE` | `discord` | Template: discord, slack, gotify, json |
-| `WEBHOOK_EVENTS` | `extracted,failed` | Events: queued, extracting, extracted, failed |
+See [Unpackerr's configuration docs](https://unpackerr.zip/docs/install/configuration) for all options.
 
 ## Architecture
 
 ```txt
 ┌─────────────────────────────────────────────────────────────────────┐
-│                            Unpackarr                                │
+│                       Unpackarr Wrapper                             │
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                     │
-│  ┌─────────────┐  poll    ┌──────────────┐    ┌────────────────┐    │
-│  │ Starr Apps  │─────────►│              │    │  Health Server │    │
-│  │  (Sonarr,   │  queues  │  Extraction  │◄───│   HTTP :9092   │    │
-│  │   Radarr,   │          │    Queue     │    │  (/ping,       │    │
-│  │   Lidarr,   │          │              │    │   /metrics)    │    │
-│  │   Readarr)  │          │  (xtractr)   │    └────────────────┘    │
-│  └─────────────┘          └──────┬───────┘                          │
-│                                  │                                  │
-│  ┌─────────────┐  scan           │ extract                          │
-│  │   Folder    │─────────────────┘                                  │
-│  │   Watcher   │                  │                                 │
-│  └─────────────┘                  ▼                                 │
-│                           ┌───────────────┐                         │
-│                           │   Callbacks   │                         │
-│                           ├───────────────┤                         │
-│                           │   • Metrics   │                         │
-│                           │   • Webhooks  │                         │
-│                           │   • Markers   │                         │
-│                           └───────────────┘                         │
+│  ┌─────────────────┐                      ┌────────────────┐       │
+│  │  Wrapper Layer  │                      │  Health Server │       │
+│  │   (Go Binary)   │───────monitors──────►│   HTTP :9092   │       │
+│  │                 │                      │  (/ping,       │       │
+│  │  • Subprocess   │                      │   /health,     │       │
+│  │    management   │                      │   /ready,      │       │
+│  │  • Log stream   │                      │   /status,     │       │
+│  │  • Monitoring   │                      │   /metrics)    │       │
+│  └────────┬────────┘                      └────────────────┘       │
+│           │                                                         │
+│           │ spawns                                                  │
+│           ▼                                                         │
+│  ┌──────────────────────────────────────────────────────┐          │
+│  │              Official Unpackerr Binary               │          │
+│  │                                                       │          │
+│  │  • Archive extraction (xtractr)                      │          │
+│  │  • *arr app integration (Sonarr/Radarr/etc)         │          │
+│  │  • Folder watching                                   │          │
+│  │  • Webhook notifications                             │          │
+│  │  • Web UI and API (:5656)                            │          │
+│  │  • All standard Unpackerr features                   │          │
+│  └──────────────────────────────────────────────────────┘          │
 │                                                                     │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
 **Key Components:**
 
-- **Starr Clients** — Poll *arr application queues at `POLL_INTERVAL` for completed downloads
-- **Folder Watcher** — Scans configured directories for archives (standalone mode)
-- **Extraction Queue** — Centralized queue using `golift.io/xtractr` with configurable parallelism
-- **Health Server** — Exposes metrics, status, and health check endpoints
-- **Callbacks** — Handle post-extraction actions (metrics recording, webhook notifications, marker file creation)
+- **Wrapper Layer** — Go binary that manages the Unpackerr subprocess, provides enhanced health endpoints, and streams logs
+- **Official Unpackerr** — The proven [Unpackerr](https://github.com/Unpackerr/unpackerr) binary handles all extraction and *arr integration
+- **Health Server** — Wrapper-provided HTTP endpoints for container orchestration
 
 **Design Principles:**
 
-- **Stateless design** — No persistence, safe to restart
-- **Single binary** — Pure Go implementation, no external dependencies
-- **Goroutine-based** — Concurrent polling and extraction
-- **Channel-driven** — Clean communication between components
-
-### *arr Apps (Sonarr, Radarr, Lidarr, Readarr)
-
-These apps are supported via the [golift.io/starr](https://github.com/golift/starr) package. Each app uses the same pattern. Replace `{APP}` with `SONARR`, `RADARR`, `LIDARR`, or `READARR`. See [docs/environment-variables.md](docs/environment-variables.md) for detailed configuration.
-
-| Variable | Default | Description |
-| --- | --- | --- |
-| `{APP}_URL` | | Base URL (e.g., <http://sonarr:8989>) |
-| `{APP}_API_KEY` | | API key from app settings |
-| `{APP}_PATHS` | | Comma-separated path prefixes to monitor (empty = all paths) |
-| `{APP}_PROTOCOLS` | | Comma-separated protocols: `torrent`, `usenet` (empty = all protocols) |
-
-**Note**: Other *arr applications (e.g., Whisparr) not listed above can use the [Folder Watching](#folder-watching) feature for automatic extraction.
+- **Focused wrapper** — Minimal Go code, leverages official Unpackerr
+- **Enhanced monitoring** — Better health checks for Kubernetes/Docker
+- **Unified logging** — Wrapper streams and prefixes Unpackerr logs
+- **Full compatibility** — All Unpackerr features and configuration passthrough
 
 ## Health Endpoints
 
+Wrapper-provided endpoints for container health monitoring:
+
 | Endpoint | Purpose |
 | --- | --- |
-| `/ping` | Liveness check |
-| `/health` | Readiness check |
-| `/ready` | Deep health check (verifies starr connectivity) |
-| `/status` | Current queue and app status (JSON) |
-| `/metrics` | Prometheus metrics |
+| `/ping` | Liveness check (wrapper is running) |
+| `/health` | Basic health check |
+| `/ready` | Readiness check (Unpackerr subprocess is running) |
+| `/status` | Current wrapper and Unpackerr status (JSON) |
+| `/metrics` | Prometheus-compatible metrics |
 
 ### Example `/status` Response
 
 ```json
 {
-  "queue": {
-    "waiting": 2,
-    "extracting": 1
+  "wrapper": {
+    "uptime_seconds": 16320
   },
-  "folder_watcher": {
-    "enabled": true,
-    "paths": ["/downloads"]
-  },
-  "apps": {
-    "sonarr": {"connected": true, "queue_items": 5},
-    "radarr": {"connected": true, "queue_items": 3}
-  },
-  "uptime_seconds": 16320
+  "unpackerr": {
+    "status": "running",
+    "pid": 42
+  }
 }
 ```
 
 ## Metrics
 
-Prometheus-compatible metrics at `/metrics`:
+This wrapper provides **two separate metrics endpoints** for comprehensive monitoring:
+
+### Wrapper Metrics (Port 9092)
+
+The wrapper exposes its own metrics at `http://localhost:9092/metrics` for monitoring the wrapper process itself:
 
 ```prometheus
-# Extraction metrics
-unpackarr_extractions_total{source,status}
-unpackarr_extraction_duration_seconds{source}
-unpackarr_bytes_extracted_total{source}
-unpackarr_files_extracted_total{source}
-unpackarr_archives_processed_total{source}
-
-# Queue metrics
-unpackarr_queue_size{state}
-unpackarr_starr_queue_items{app}
-unpackarr_starr_connected{app}
-
-# System metrics
-unpackarr_start_time_seconds
+# Wrapper process metrics
+unpackarr_wrapper_start_time_seconds           # Wrapper start time
+unpackarr_process_running                      # Whether Unpackerr subprocess is running (1=yes, 0=no)
 ```
 
-## Grafana Dashboard
+**Prometheus scrape config:**
+```yaml
+scrape_configs:
+  - job_name: 'unpackarr-wrapper'
+    static_configs:
+      - targets: ['unpackarr:9092']
+```
 
-A pre-built Grafana dashboard is available at [docs/unpackarr-grafana-dashboard.json](docs/unpackarr-grafana-dashboard.json). Import it into your Grafana instance to visualize:
+### Unpackerr Metrics (Port 5656)
 
-- Extraction success rates and failure counts
-- Queue size and state (waiting, extracting)
-- Extraction throughput (bytes, files, archives)
-- Starr app connection status and queue items
-- Go runtime metrics (memory, goroutines, CPU)
-- Uptime and extraction duration trends
+The official Unpackerr binary exposes detailed extraction metrics at `http://localhost:5656/metrics` when enabled:
+
+**Enable Unpackerr metrics:**
+```yaml
+environment:
+  - UN_WEBSERVER_METRICS=true
+```
+
+These metrics include:
+- Extraction counts and durations
+- Queue sizes and states
+- Archive statistics (files, bytes, etc.)
+- Starr app connection status
+
+**Prometheus scrape config:**
+```yaml
+scrape_configs:
+  - job_name: 'unpackerr'
+    static_configs:
+      - targets: ['unpackarr:5656']
+```
+
+### Combined Monitoring
+
+For complete monitoring, configure Prometheus to scrape **both endpoints**:
+
+```yaml
+scrape_configs:
+  - job_name: 'unpackarr-wrapper'
+    static_configs:
+      - targets: ['unpackarr:9092']
+    
+  - job_name: 'unpackerr-extraction'
+    static_configs:
+      - targets: ['unpackarr:5656']
+```
+
+This gives you both wrapper process health (9092) and detailed extraction metrics (5656).
 
 ## Docker Compose
 
@@ -220,75 +225,34 @@ services:
     image: ghcr.io/eslutz/unpackarr:latest
     container_name: unpackarr
     environment:
-      - SONARR_URL=http://sonarr:8989
-      - SONARR_API_KEY=${SONARR_API_KEY}
-      - RADARR_URL=http://radarr:7878
-      - RADARR_API_KEY=${RADARR_API_KEY}
+      # Wrapper configuration
+      - HEALTH_PORT=9092
+      - LOG_LEVEL=INFO
+      
+      # Unpackerr configuration (passthrough)
+      - UN_SONARR_0_URL=http://sonarr:8989
+      - UN_SONARR_0_API_KEY=${SONARR_API_KEY}
+      - UN_RADARR_0_URL=http://radarr:7878
+      - UN_RADARR_0_API_KEY=${RADARR_API_KEY}
+      - UN_PARALLEL=1
+      - UN_DELETE_ORIG=false
     volumes:
       - /path/to/downloads:/downloads
     ports:
-      - "9092:9092"
+      - "9092:9092"  # Wrapper health endpoints
+      - "5656:5656"  # Unpackerr web UI
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9092/ready"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 ```
-
-## Webhook Templates
-
-### Discord
-
-```bash
-WEBHOOK_URL=https://discord.com/api/webhooks/xxx
-WEBHOOK_TEMPLATE=discord
-```
-
-### Slack
-
-```bash
-WEBHOOK_URL=https://hooks.slack.com/services/xxx
-WEBHOOK_TEMPLATE=slack
-```
-
-### Gotify
-
-```bash
-WEBHOOK_URL=https://gotify.example.com/message?token=xxx
-WEBHOOK_TEMPLATE=gotify
-```
-
-### Custom JSON
-
-```bash
-WEBHOOK_TEMPLATE=json
-```
-
-JSON payload format:
-
-```json
-{
-  "event": "extracted",
-  "name": "Movie.Name.2024",
-  "source": "radarr",
-  "success": true,
-  "started": "2024-01-05T10:30:00Z",
-  "elapsed": "45s",
-  "archives": 1,
-  "files": 12,
-  "size": 1073741824
-}
-```
-
-## Supported Archive Formats
-
-- RAR (.rar, .r00-r99)
-- ZIP (.zip)
-- 7-Zip (.7z)
-- TAR (.tar, .tar.gz, .tgz)
-- GZIP (.gz)
-- BZIP2 (.bz2)
-- ISO (.iso)
 
 ## Contributing
 
-Contributions are welcome! Please follow these guidelines when submitting changes.
+Contributions are welcome! This wrapper project focuses on container integration and health monitoring. For extraction functionality improvements, please contribute to the upstream [Unpackerr](https://github.com/Unpackerr/unpackerr) project.
 
 ### Building from Source
 
@@ -300,25 +264,11 @@ cd unpackarr
 # Install dependencies
 go mod download
 
-# Build binary
-go build -o unpackarr ./cmd/unpackarr
+# Build wrapper binary
+go build -o unpackarr-wrapper ./cmd/unpackarr
 
 # Build Docker image
-docker build -t unpackarr .
-```
-
-With version information:
-
-```bash
-VERSION=0.1.0
-COMMIT=$(git rev-parse --short HEAD)
-DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-
-go build -ldflags="-s -w \
-  -X github.com/eslutz/unpackarr/pkg/version.Version=$VERSION \
-  -X github.com/eslutz/unpackarr/pkg/version.Commit=$COMMIT \
-  -X github.com/eslutz/unpackarr/pkg/version.Date=$DATE" \
-  -o unpackarr ./cmd/unpackarr
+docker build -t unpackarr-wrapper .
 ```
 
 ### Development
@@ -327,18 +277,18 @@ go build -ldflags="-s -w \
 # Run tests
 go test ./...
 
-# Run tests with race detector and coverage
-go test -race -coverprofile=coverage.out -covermode=atomic ./...
-
-# View coverage report
-go tool cover -func=coverage.out
-
 # Run linter
 golangci-lint run
 
-# Run locally
-export SONARR_URL=http://localhost:8989
-export SONARR_API_KEY=your-key
+# Note: The wrapper requires the Unpackerr binary at /usr/local/bin/unpackerr
+# For local development, you can download it manually:
+wget https://github.com/Unpackerr/unpackerr/releases/download/v0.14.5/unpackerr.linux-amd64.tar.gz
+tar -xzf unpackerr.linux-amd64.tar.gz
+sudo mv unpackerr /usr/local/bin/
+
+# Then run the wrapper
+export HEALTH_PORT=9092
+export LOG_LEVEL=DEBUG
 go run ./cmd/unpackarr
 ```
 
@@ -381,13 +331,12 @@ You are free to use, modify, and distribute this software under the terms of the
 
 ## Acknowledgments
 
-This project is built with and inspired by excellent open-source software:
+This project wraps and enhances the excellent:
 
-- **[golift.io/xtractr](https://github.com/golift/xtractr)** - Archive extraction library for Go
-- **[golift.io/starr](https://github.com/golift/starr)** - Starr application API clients
-- **[golift.io/cnfg](https://github.com/golift/cnfg)** - Environment-based configuration
-- **[Prometheus](https://prometheus.io/)** - Monitoring system and time series database
-- **[unpackerr](https://github.com/Unpackerr/unpackerr)** - The original archive extraction tool for *arr applications (inspiration for this project)
+- **[Unpackerr](https://github.com/Unpackerr/unpackerr)** - The official archive extraction tool for *arr applications that powers this wrapper
+- **[golift.io/cnfg](https://github.com/golift/cnfg)** - Environment-based configuration used by the wrapper
+
+All extraction functionality is provided by the official Unpackerr project.
 
 ## Related Projects
 
