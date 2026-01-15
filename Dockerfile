@@ -14,11 +14,12 @@ RUN go build -ldflags="-s -w \
   -o /unpackarr-wrapper ./cmd/unpackarr
 
 # Download the official Unpackerr binary
+# To update to the latest version, check: https://github.com/Unpackerr/unpackerr/releases/latest
 FROM alpine:3.23 AS unpackerr
 ARG UNPACKERR_VERSION=0.14.5
-RUN apk add --no-cache curl tar && \
-    curl -sL "https://github.com/Unpackerr/unpackerr/releases/download/v${UNPACKERR_VERSION}/unpackerr.linux-amd64.tar.gz" | \
-    tar xzf - -C /tmp && \
+RUN apk add --no-cache curl && \
+    curl -fsSL "https://github.com/Unpackerr/unpackerr/releases/download/v${UNPACKERR_VERSION}/unpackerr.amd64.linux.gz" -o /tmp/unpackerr.gz && \
+    gunzip /tmp/unpackerr.gz && \
     mv /tmp/unpackerr /usr/local/bin/unpackerr && \
     chmod +x /usr/local/bin/unpackerr
 
