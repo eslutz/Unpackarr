@@ -49,8 +49,8 @@ docker run -d \
 ```
 
 **Ports:**
-- `9092` - Wrapper health endpoints
-- `5656` - Unpackerr web UI and API
+- `9092` - Wrapper health endpoints (/ping, /health, /ready, /status) and wrapper metrics (/metrics)
+- `5656` - Unpackerr metrics endpoint (/metrics) - requires UN_WEBSERVER_METRICS=true
 
 ## Configuration
 
@@ -154,15 +154,66 @@ Wrapper-provided endpoints for container health monitoring:
 
 ## Metrics
 
-Wrapper-provided Prometheus-compatible metrics at `/metrics`:
+This wrapper provides **two separate metrics endpoints** for comprehensive monitoring:
+
+### Wrapper Metrics (Port 9092)
+
+The wrapper exposes its own metrics at `http://localhost:9092/metrics` for monitoring the wrapper process itself:
 
 ```prometheus
-# Wrapper metrics
-unpackarr_wrapper_start_time_seconds
-unpackarr_process_running{status}  # 1=running, 0=stopped
+# Wrapper process metrics
+unpackarr_wrapper_start_time_seconds           # Wrapper start time
+unpackarr_process_running                      # Whether Unpackerr subprocess is running (1=yes, 0=no)
 ```
 
-For full extraction metrics, Unpackerr exposes its own metrics on port 5656 at `/metrics`.
+**Prometheus scrape config:**
+```yaml
+scrape_configs:
+  - job_name: 'unpackarr-wrapper'
+    static_configs:
+      - targets: ['unpackarr:9092']
+```
+
+### Unpackerr Metrics (Port 5656)
+
+The official Unpackerr binary exposes detailed extraction metrics at `http://localhost:5656/metrics` when enabled:
+
+**Enable Unpackerr metrics:**
+```yaml
+environment:
+  - UN_WEBSERVER_METRICS=true
+```
+
+These metrics include:
+- Extraction counts and durations
+- Queue sizes and states
+- Archive statistics (files, bytes, etc.)
+- Starr app connection status
+
+**Prometheus scrape config:**
+```yaml
+scrape_configs:
+  - job_name: 'unpackerr'
+    static_configs:
+      - targets: ['unpackarr:5656']
+```
+
+### Combined Monitoring
+
+For complete monitoring, configure Prometheus to scrape **both endpoints**:
+
+```yaml
+scrape_configs:
+  - job_name: 'unpackarr-wrapper'
+    static_configs:
+      - targets: ['unpackarr:9092']
+    
+  - job_name: 'unpackerr-extraction'
+    static_configs:
+      - targets: ['unpackarr:5656']
+```
+
+This gives you both wrapper process health (9092) and detailed extraction metrics (5656).
 
 ## Docker Compose
 

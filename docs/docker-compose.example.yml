@@ -41,7 +41,7 @@ services:
 
     ports:
       - "9092:9092"  # Wrapper health endpoints
-      - "5656:5656"  # Unpackerr web UI and API
+      - "5656:5656"  # Unpackerr metrics endpoint
 
     restart: unless-stopped
 
