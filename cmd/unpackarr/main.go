@@ -102,9 +102,45 @@ func main() {
 func streamLogs(reader io.Reader, prefix string) {
 	scanner := bufio.NewScanner(reader)
 	for scanner.Scan() {
-		logger.Info("%s %s", prefix, scanner.Text())
+		line := scanner.Text()
+		logAtParsedLevel(prefix, line)
 	}
 	if err := scanner.Err(); err != nil {
 		logger.Error("%s Error reading logs: %v", prefix, err)
 	}
+}
+
+// logAtParsedLevel parses the log level from Unpackerr output and logs at the appropriate level
+func logAtParsedLevel(prefix, line string) {
+	// Unpackerr log format typically includes [DEBUG], [INFO], [WARN], [ERROR] in the message
+	// Look for these patterns and log at the corresponding level
+	switch {
+	case containsLogLevel(line, "[DEBUG]"):
+		logger.Debug("%s %s", prefix, line)
+	case containsLogLevel(line, "[WARN]"):
+		logger.Warn("%s %s", prefix, line)
+	case containsLogLevel(line, "[ERROR]"):
+		logger.Error("%s %s", prefix, line)
+	default:
+		// Default to INFO for lines without explicit level or with [INFO]
+		logger.Info("%s %s", prefix, line)
+	}
+}
+
+// containsLogLevel checks if a line contains a specific log level marker
+func containsLogLevel(line, level string) bool {
+	// Case-insensitive check for log level markers
+	return len(line) >= len(level) && 
+		(line[:len(level)] == level || 
+		 findSubstring(line, level))
+}
+
+// findSubstring does a simple substring search
+func findSubstring(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
 }
