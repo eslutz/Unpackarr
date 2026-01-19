@@ -87,28 +87,28 @@ See [Unpackerr's configuration docs](https://unpackerr.zip/docs/install/configur
 │                       Unpackarr Wrapper                             │
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                     │
-│  ┌─────────────────┐                      ┌────────────────┐       │
-│  │  Wrapper Layer  │                      │  Health Server │       │
-│  │   (Go Binary)   │───────monitors──────►│   HTTP :9092   │       │
-│  │                 │                      │  (/ping,       │       │
-│  │  • Subprocess   │                      │   /health,     │       │
-│  │    management   │                      │   /ready,      │       │
-│  │  • Log stream   │                      │   /status,     │       │
-│  │  • Monitoring   │                      │   /metrics)    │       │
-│  └────────┬────────┘                      └────────────────┘       │
+│  ┌─────────────────┐                      ┌────────────────┐        │
+│  │  Wrapper Layer  │                      │  Health Server │        │
+│  │   (Go Binary)   │───────monitors──────►│   HTTP :9092   │        │
+│  │                 │                      │  (/ping,       │        │
+│  │  • Subprocess   │                      │   /health,     │        │
+│  │    management   │                      │   /ready,      │        │
+│  │  • Log stream   │                      │   /status,     │        │
+│  │  • Monitoring   │                      │   /metrics)    │        │
+│  └────────┬────────┘                      └────────────────┘        │
 │           │                                                         │
 │           │ spawns                                                  │
 │           ▼                                                         │
-│  ┌──────────────────────────────────────────────────────┐          │
-│  │              Official Unpackerr Binary               │          │
-│  │                                                       │          │
-│  │  • Archive extraction (xtractr)                      │          │
-│  │  • *arr app integration (Sonarr/Radarr/etc)         │          │
-│  │  • Folder watching                                   │          │
-│  │  • Webhook notifications                             │          │
-│  │  • Web UI and API (:5656)                            │          │
-│  │  • All standard Unpackerr features                   │          │
-│  └──────────────────────────────────────────────────────┘          │
+│  ┌──────────────────────────────────────────────────────┐           │
+│  │              Official Unpackerr Binary               │           │
+│  │                                                      │           │
+│  │  • Archive extraction (xtractr)                      │           │
+│  │  • *arr app integration (Sonarr/Radarr/etc)          │           │
+│  │  • Folder watching                                   │           │
+│  │  • Webhook notifications                             │           │
+│  │  • Web UI and API (:5656)                            │           │
+│  │  • All standard Unpackerr features                   │           │
+│  └──────────────────────────────────────────────────────┘           │
 │                                                                     │
 └─────────────────────────────────────────────────────────────────────┘
 ```
